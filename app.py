@@ -270,9 +270,19 @@ def _compact_card_html(item: ScheduleItem) -> str:
 # ── header ───────────────────────────────────────────────────────────────────
 st.markdown(
     '<h1 style="font-size:28px;font-weight:700;color:#1a1a1a;margin-bottom:0;">📅 AI 日程助手</h1>'
-    '<p style="color:#999;font-size:14px;margin-bottom:24px;">粘贴通知文本，AI 自动提取日程与待办</p>',
+    '<p style="color:#999;font-size:14px;margin-bottom:4px;">粘贴通知文本，AI 自动提取日程与待办</p>',
     unsafe_allow_html=True,
 )
+
+event_count = len(st.session_state.events)
+todo_count = len(st.session_state.todos)
+if event_count > 0 or todo_count > 0:
+    st.markdown(
+        f'<p style="color:#bbb;font-size:12px;margin-bottom:16px;">{event_count} 条日程 · {todo_count} 条待办</p>',
+        unsafe_allow_html=True,
+    )
+else:
+    st.markdown('<p style="color:#bbb;font-size:12px;margin-bottom:16px;">暂无数据</p>', unsafe_allow_html=True)
 
 # ── 3-column layout ──────────────────────────────────────────────────────────
 col_input, col_events, col_todos = st.columns([1, 1.2, 0.8])

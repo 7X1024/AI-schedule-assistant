@@ -161,7 +161,7 @@ def load_events() -> List[ScheduleItem]:
         try:
             items.append(ScheduleItem(**obj))
         except Exception as e:
-            print(f"[sheets_storage] 跳过无效 events 条目: {e}")
+            st.warning(f"⚠️ 跳过无效 events 条目 (id={obj.get('id', '?')[:8]}): {e}")
     return items
 
 
@@ -178,7 +178,7 @@ def load_todos() -> List[ScheduleItem]:
         try:
             items.append(ScheduleItem(**obj))
         except Exception as e:
-            print(f"[sheets_storage] 跳过无效 todos 条目: {e}")
+            st.warning(f"⚠️ 跳过无效 todos 条目 (id={obj.get('id', '?')[:8]}): {e}")
     return items
 
 
