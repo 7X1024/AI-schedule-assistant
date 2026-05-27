@@ -66,7 +66,7 @@ def _ensure_worksheet(name: str, headers: List[str]):
     try:
         ws = spreadsheet.worksheet(name)
     except WorksheetNotFound:
-        ws = spreadsheet.add_worksheet(title=name, rows="100", cols=str(len(headers)))
+        ws = spreadsheet.add_worksheet(title=name, rows=100, cols=16)
         ws.append_row(headers)
         return ws
 
@@ -155,13 +155,15 @@ def load_events() -> List[ScheduleItem]:
         return []
     items: List[ScheduleItem] = []
     for row in values[1:]:
+        if not row or not row[2].strip():
+            continue
         obj = _row_to_item(row)
         if obj is None:
             continue
         try:
             items.append(ScheduleItem(**obj))
         except Exception as e:
-            st.warning(f"⚠️ 跳过无效 events 条目 (id={obj.get('id', '?')[:8]}): {e}")
+            st.warning(f"⚠️ 跳过无效 events 条目 (id={obj.get('id', '?')[:8]}): {e} → 原始行: {row[:4]}")
     return items
 
 
@@ -172,13 +174,15 @@ def load_todos() -> List[ScheduleItem]:
         return []
     items: List[ScheduleItem] = []
     for row in values[1:]:
+        if not row or not row[2].strip():
+            continue
         obj = _row_to_item(row)
         if obj is None:
             continue
         try:
             items.append(ScheduleItem(**obj))
         except Exception as e:
-            st.warning(f"⚠️ 跳过无效 todos 条目 (id={obj.get('id', '?')[:8]}): {e}")
+            st.warning(f"⚠️ 跳过无效 todos 条目 (id={obj.get('id', '?')[:8]}): {e} → 原始行: {row[:4]}")
     return items
 
 
