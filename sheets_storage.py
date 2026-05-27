@@ -78,14 +78,27 @@ def _ensure_worksheet(name: str, headers: List[str]):
     return ws
 
 
+def _safe_float(val: str) -> float:
+    try:
+        return float(val or 0)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def _safe_bool(val: str) -> bool:
+    try:
+        return val.strip().lower() in ("true", "1", "yes")
+    except (AttributeError, TypeError):
+        return False
+
+
 def _row_to_item(row: List[str]) -> Optional[dict]:
     """Convert a Google Sheets row (list of strings) to a dict for Pydantic.
     Returns None if the row should be skipped (deleted or invalid)."""
-    # pad row to header length in case of trailing empty cells
     while len(row) < len(EVENTS_HEADERS):
         row.append("")
 
-    deleted = row[13].strip().lower() in ("true", "1", "yes")
+    deleted = _safe_bool(row[13])
     if deleted:
         return None
 
@@ -98,12 +111,12 @@ def _row_to_item(row: List[str]) -> Optional[dict]:
         "end_time": row[5] or None,
         "deadline": row[6] or None,
         "location": row[7] or None,
-        "time_period": None,  # not persisted in sheets (for now)
+        "time_period": None,
         "priority": row[8] or "medium",
         "source_text": row[9],
-        "confidence": float(row[10] or 0),
-        "needs_confirmation": row[11].strip().lower() in ("true", "1", "yes"),
-        "is_completed": row[12].strip().lower() in ("true", "1", "yes"),
+        "confidence": _safe_float(row[10]),
+        "needs_confirmation": _safe_bool(row[11]),
+        "is_completed": _safe_bool(row[12]),
         "deleted": deleted,
         "created_at": row[14] or None,
         "updated_at": row[15] or None,

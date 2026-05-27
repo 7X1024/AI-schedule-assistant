@@ -288,7 +288,7 @@ with col_input:
         height=240,
         placeholder="在此粘贴通知、公告、邮件、群聊消息…",
         label_visibility="collapsed",
-        key="input_text",
+        key="ta_input",
     )
 
     btn1, btn2 = st.columns(2)
@@ -309,7 +309,8 @@ with col_input:
 
     with btn2:
         if st.button("清空", use_container_width=True):
-            st.session_state.input_text = ""
+            if "ta_input" in st.session_state:
+                del st.session_state["ta_input"]
             st.session_state.preview_items = []
             st.rerun()
 
