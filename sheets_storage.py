@@ -67,13 +67,13 @@ def _ensure_worksheet(name: str, headers: List[str]):
         ws = spreadsheet.worksheet(name)
     except WorksheetNotFound:
         ws = spreadsheet.add_worksheet(title=name, rows=1, cols=16)
-        ws.append_row(headers)
+        ws.update("A1", [headers])
         return ws
 
     values = ws.get_all_values()
     effective_rows = sum(1 for row in values if any(cell.strip() for cell in row))
     if effective_rows == 0:
-        ws.append_row(headers)
+        ws.update("A1", [headers])
 
     return ws
 
