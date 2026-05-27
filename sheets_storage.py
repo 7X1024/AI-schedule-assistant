@@ -66,13 +66,13 @@ def _ensure_worksheet(name: str, headers: List[str]):
     try:
         ws = spreadsheet.worksheet(name)
     except WorksheetNotFound:
-        ws = spreadsheet.add_worksheet(title=name, rows=100, cols=16)
+        ws = spreadsheet.add_worksheet(title=name, rows=1, cols=16)
         ws.append_row(headers)
         return ws
 
-    # worksheet exists – only write headers if sheet is genuinely empty
     values = ws.get_all_values()
-    if len(values) == 0:
+    effective_rows = sum(1 for row in values if any(cell.strip() for cell in row))
+    if effective_rows == 0:
         ws.append_row(headers)
 
     return ws
