@@ -267,6 +267,22 @@ def _compact_card_html(item: ScheduleItem) -> str:
     """
 
 
+def render_item_card(item: ScheduleItem, compact: bool = False, extra: str = "", faded: bool = False) -> None:
+    if compact:
+        html = _compact_card_html(item)
+    else:
+        html = _card_html(item, extra)
+
+    if faded:
+        html = html.replace('class="card', 'class="card" style="opacity:0.55;"')
+
+    st.markdown(html, unsafe_allow_html=True)
+
+    if item.source_text and item.source_text.strip():
+        with st.expander("查看原通知"):
+            st.text(item.source_text)
+
+
 # ── header ───────────────────────────────────────────────────────────────────
 st.markdown(
     '<h1 style="font-size:28px;font-weight:700;color:#1a1a1a;margin-bottom:0;">📅 AI 日程助手</h1>'
@@ -275,10 +291,12 @@ st.markdown(
 )
 
 event_count = len(st.session_state.events)
-todo_count = len(st.session_state.todos)
-if event_count > 0 or todo_count > 0:
+all_todo_count = len(st.session_state.todos)
+active_todo_count = sum(1 for t in st.session_state.todos if not t.is_completed)
+completed_todo_count = sum(1 for t in st.session_state.todos if t.is_completed)
+if event_count > 0 or all_todo_count > 0:
     st.markdown(
-        f'<p style="color:#bbb;font-size:12px;margin-bottom:16px;">{event_count} 条日程 · {todo_count} 条待办</p>',
+        f'<p style="color:#bbb;font-size:12px;margin-bottom:16px;">{event_count} 条日程 · {active_todo_count} 条待办 · {completed_todo_count} 条已完成</p>',
         unsafe_allow_html=True,
     )
 else:
@@ -318,7 +336,7 @@ with col_input:
                 st.rerun()
 
     with btn2:
-        if st.button("清空", use_container_width=True):
+        if st.button("清空输入", use_container_width=True):
             if "ta_input" in st.session_state:
                 del st.session_state["ta_input"]
             st.session_state.preview_items = []
@@ -331,7 +349,7 @@ with col_input:
         st.caption("请确认以下内容，确认后才会保存")
 
         for i, item in enumerate(st.session_state.preview_items):
-            st.markdown(_card_html(item, extra="preview-card"), unsafe_allow_html=True)
+            render_item_card(item, extra="preview-card")
 
         col_confirm, col_cancel = st.columns(2)
         with col_confirm:
@@ -370,7 +388,7 @@ with col_events:
 
     if today_events:
         for event in today_events:
-            st.markdown(_card_html(event), unsafe_allow_html=True)
+            render_item_card(event)
 
             col_del1, _ = st.columns([1, 9])
             with col_del1:
@@ -398,11 +416,11 @@ with col_events:
     sel_sunday = sel_monday + timedelta(days=6)
     st.caption(f"{sel_monday.strftime('%m/%d')} - {sel_sunday.strftime('%m/%d')}")
 
-    week_events = [
-        e for e in all_events
-        if e.date and sel_monday <= date.fromisoformat(e.date) <= sel_sunday
-        and date.fromisoformat(e.date) != today
-    ]
+    week_events = []
+    for e in all_events:
+        d = _parse_date(e.date)
+        if d is not None and sel_monday <= d <= sel_sunday:
+            week_events.append(e)
     week_events.sort(key=lambda e: (e.start_time or "99:99", e.title))
 
     weekday_names = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
@@ -426,7 +444,7 @@ with col_events:
 
                 if day_events:
                     for event in day_events:
-                        st.markdown(_compact_card_html(event), unsafe_allow_html=True)
+                        render_item_card(event, compact=True)
                         col_del_w, _ = st.columns([1, 5])
                         with col_del_w:
                             if st.button("✕", key=f"del_w_{event.id}", help="删除"):
@@ -460,7 +478,7 @@ with col_events:
         st.caption("这些日程日期不明确，需要手动确认")
 
         for event in unscheduled_events:
-            st.markdown(_card_html(event), unsafe_allow_html=True)
+            render_item_card(event)
 
             col_del3, _ = st.columns([1, 9])
             with col_del3:
@@ -490,7 +508,7 @@ with col_todos:
 
     if active_todos:
         for todo in active_todos:
-            st.markdown(_card_html(todo), unsafe_allow_html=True)
+            render_item_card(todo)
 
             col_done, col_del3t, _ = st.columns([1, 1, 8])
             with col_done:
@@ -516,12 +534,7 @@ with col_todos:
             unsafe_allow_html=True,
         )
         for todo in completed_todos:
-            st.markdown(
-                _card_html(todo).replace(
-                    'class="card"', 'class="card" style="opacity:0.55;"'
-                ),
-                unsafe_allow_html=True,
-            )
+            render_item_card(todo, faded=True)
             col_undo, col_del4, _ = st.columns([1, 1, 8])
             with col_undo:
                 if st.button("↩", key=f"undo_{todo.id}", help="恢复未完成"):
