@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 from datetime import date, timedelta
 from typing import List, Optional
 
@@ -175,6 +176,29 @@ st.markdown(
 
     /* ── compact date input ── */
     .stDateInput > div { width: 180px !important; }
+
+    /* ── hide expander chrome: no border, no toggle icon ── */
+    [data-testid="stExpander"] {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    [data-testid="stExpander"] details {
+        border: none !important;
+    }
+    [data-testid="stExpander"] details summary {
+        font-size: 12px !important;
+        color: #888 !important;
+        padding: 4px 0 !important;
+        min-height: auto !important;
+    }
+    [data-testid="stExpander"] details summary svg {
+        display: none !important;
+    }
+    [data-testid="stExpander"] details summary::marker,
+    [data-testid="stExpander"] details summary::-webkit-details-marker {
+        display: none !important;
+    }
 </style>
 """,
     unsafe_allow_html=True,
@@ -204,7 +228,8 @@ def _parse_date(d: Optional[str]) -> Optional[date]:
 
 def _card_html(item: ScheduleItem, extra: str = "") -> str:
     priority_label = {"high": "高", "medium": "中", "low": "低"}.get(item.priority, "")
-    source = item.source_text.replace("\n", " ")[:80]
+    safe_title = html.escape(item.title)
+    source = html.escape(item.source_text.replace("\n", " "))[:80]
 
     if item.type == "event":
         time_parts = []
@@ -217,14 +242,14 @@ def _card_html(item: ScheduleItem, extra: str = "") -> str:
             period_labels = {"morning": "上午", "noon": "中午", "afternoon": "下午", "evening": "晚上", "night": "半夜"}
             time_parts.append(period_labels.get(item.time_period, item.time_period))
         if item.location:
-            time_parts.append(f"📍 {item.location}")
+            time_parts.append(f"📍 {html.escape(item.location)}")
         meta = " · ".join(time_parts) if time_parts else ""
     else:
         meta = ""
         if item.deadline:
-            meta = f"截止: {item.deadline}"
+            meta = f"截止: {html.escape(item.deadline)}"
         if item.location:
-            meta += f" · 📍 {item.location}" if meta else f"📍 {item.location}"
+            meta += f" · 📍 {html.escape(item.location)}" if meta else f"📍 {html.escape(item.location)}"
 
     confirm = ""
     if item.needs_confirmation:
@@ -232,7 +257,7 @@ def _card_html(item: ScheduleItem, extra: str = "") -> str:
 
     return f"""
     <div class="card {extra}">
-        <div class="card-title">{item.title} {confirm} <span class="badge badge-{item.priority}">{priority_label}</span></div>
+        <div class="card-title">{safe_title} {confirm} <span class="badge badge-{item.priority}">{priority_label}</span></div>
         <div class="card-meta">{meta}</div>
         <div class="card-source">原文: {source}</div>
     </div>
@@ -242,6 +267,7 @@ def _card_html(item: ScheduleItem, extra: str = "") -> str:
 def _compact_card_html(item: ScheduleItem) -> str:
     priority_color = {"high": "#ef4444", "medium": "#f59e0b", "low": "#9ca3af"}
     color = priority_color.get(item.priority, "#9ca3af")
+    safe_title = html.escape(item.title)
 
     time_str = ""
     if item.start_time:
@@ -254,14 +280,14 @@ def _compact_card_html(item: ScheduleItem) -> str:
 
     meta_parts = [time_str] if time_str else []
     if item.location:
-        meta_parts.append(item.location)
+        meta_parts.append(html.escape(item.location))
     meta = " · ".join(meta_parts)
 
     confirm = '<span style="background:#fef2f2;color:#dc2626;font-size:9px;padding:0 3px;border-radius:2px;">!</span>' if item.needs_confirmation else ""
 
     return f"""
     <div style="background:#fff;border-radius:6px;padding:6px 8px;margin-bottom:5px;border-left:2px solid {color};font-size:11px;line-height:1.4;">
-        <div style="font-weight:600;color:#1a1a1a;">{item.title} {confirm}</div>
+        <div style="font-weight:600;color:#1a1a1a;">{safe_title} {confirm}</div>
         <div style="color:#888;font-size:10px;">{meta}</div>
     </div>
     """
@@ -285,7 +311,7 @@ def render_item_card(
     st.markdown(html, unsafe_allow_html=True)
 
     if show_source and item.source_text and item.source_text.strip():
-        with st.popover("", icon="📎", use_container_width=False):
+        with st.expander("原文"):
             st.text(item.source_text)
 
 
@@ -450,7 +476,7 @@ with col_events:
 
                 if day_events:
                     for event in day_events:
-                        render_item_card(event, compact=True, show_source=False)
+                        render_item_card(event, compact=True)
                         col_del_w, _ = st.columns([1, 5])
                         with col_del_w:
                             if st.button("✕", key=f"del_w_{event.id}", help="删除"):
