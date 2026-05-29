@@ -42,3 +42,6 @@ streamlit run app.py
 
 - Streamlit · DeepSeek V4 Flash · Pydantic · Pandas
 - 本地 JSON 文件存储
+
+## Debug v1-2-4
+增加了点击日程显示原文的功能，目前无bug
