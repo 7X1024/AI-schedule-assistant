@@ -222,6 +222,8 @@ if "preview_items" not in st.session_state:
     st.session_state.preview_items: List[ScheduleItem] = []
 if "input_text_val" not in st.session_state:
     st.session_state.input_text_val = ""
+if "selected_source_item" not in st.session_state:
+    st.session_state.selected_source_item: Optional[ScheduleItem] = None
 
 
 def refresh_data() -> None:
@@ -229,8 +231,18 @@ def refresh_data() -> None:
     st.session_state.todos = load_todos()
 
 
+def clear_input() -> None:
+    st.session_state.input_text_val = ""
+    st.session_state["ta_input"] = ""
+    st.session_state.preview_items = []
+
+
 def _on_input_change() -> None:
     st.session_state.input_text_val = st.session_state["ta_input"]
+
+
+def select_source(item: ScheduleItem) -> None:
+    st.session_state.selected_source_item = item
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -396,12 +408,11 @@ with col_input:
                 st.rerun()
 
     with btn2:
-        if st.button("清空输入", use_container_width=True):
-            st.session_state.input_text_val = ""
-            if "ta_input" in st.session_state:
-                del st.session_state["ta_input"]
-            st.session_state.preview_items = []
-            st.rerun()
+        st.button(
+            "清空输入",
+            use_container_width=True,
+            on_click=clear_input,
+        )
 
     # ── Preview area ──
     if st.session_state.preview_items:
@@ -505,13 +516,15 @@ with col_events:
 
                 if day_events:
                     for event in day_events:
-                        render_item_card(event, compact=True)
-                        col_del_w, _ = st.columns([1, 5])
+                        render_item_card(event, compact=True, show_source=False)
+                        col_del_w, col_src, _ = st.columns([1, 1, 4])
                         with col_del_w:
                             if st.button("✕", key=f"del_w_{event.id}", help="删除"):
                                 delete_event(event.id)
                                 refresh_data()
                                 st.rerun()
+                        with col_src:
+                            st.button("📋", key=f"src_w_{event.id}", help="查看原文", on_click=select_source, args=(event,))
                 else:
                     st.markdown(
                         '<div style="text-align:center;color:#ddd;font-size:11px;padding:8px;">—</div>',
@@ -521,6 +534,21 @@ with col_events:
         st.markdown(
             '<div class="empty-state">该周暂无其他日程</div>', unsafe_allow_html=True
         )
+
+    # ── Source detail panel ──
+    if st.session_state.selected_source_item is not None:
+        selected = st.session_state.selected_source_item
+        st.divider()
+        st.markdown('<div class="section-title" style="color:#6366f1;">📋 原文详情</div>', unsafe_allow_html=True)
+        st.markdown(_card_html(selected), unsafe_allow_html=True)
+        st.caption("原文")
+        st.markdown(
+            f'<div class="source-full">{html.escape(selected.source_text)}</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("关闭", key="close_source_detail"):
+            st.session_state.selected_source_item = None
+            st.rerun()
 
     # ── Unscheduled ──
     today_ids = {e.id for e in today_events}
