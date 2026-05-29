@@ -177,27 +177,35 @@ st.markdown(
     /* ── compact date input ── */
     .stDateInput > div { width: 180px !important; }
 
-    /* ── hide expander chrome: no border, no toggle icon ── */
-    [data-testid="stExpander"] {
-        border: none !important;
-        background: transparent !important;
-        box-shadow: none !important;
+    /* ── native clickable source details ── */
+    .source-details {
+        margin: 0 0 10px 0;
     }
-    [data-testid="stExpander"] details {
-        border: none !important;
+    .source-details > summary {
+        list-style: none;
+        cursor: pointer;
     }
-    [data-testid="stExpander"] details summary {
-        font-size: 12px !important;
-        color: #888 !important;
-        padding: 4px 0 !important;
-        min-height: auto !important;
+    .source-details > summary::-webkit-details-marker {
+        display: none;
     }
-    [data-testid="stExpander"] details summary svg {
-        display: none !important;
+    .source-details summary::marker {
+        content: "";
     }
-    [data-testid="stExpander"] details summary::marker,
-    [data-testid="stExpander"] details summary::-webkit-details-marker {
-        display: none !important;
+    .source-details .card,
+    .source-details .compact-card {
+        margin-bottom: 0;
+    }
+    .source-full {
+        margin-top: 6px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #ffffff;
+        border: 1px solid #e8e8ed;
+        color: #555;
+        font-size: 12px;
+        line-height: 1.55;
+        white-space: pre-wrap;
+        word-break: break-word;
     }
 </style>
 """,
@@ -286,10 +294,20 @@ def _compact_card_html(item: ScheduleItem) -> str:
     confirm = '<span style="background:#fef2f2;color:#dc2626;font-size:9px;padding:0 3px;border-radius:2px;">!</span>' if item.needs_confirmation else ""
 
     return f"""
-    <div style="background:#fff;border-radius:6px;padding:6px 8px;margin-bottom:5px;border-left:2px solid {color};font-size:11px;line-height:1.4;">
+    <div class="compact-card" style="background:#fff;border-radius:6px;padding:6px 8px;margin-bottom:5px;border-left:2px solid {color};font-size:11px;line-height:1.4;">
         <div style="font-weight:600;color:#1a1a1a;">{safe_title} {confirm}</div>
         <div style="color:#888;font-size:10px;">{meta}</div>
     </div>
+    """
+
+
+def _source_details_html(card_html: str, source_text: str) -> str:
+    safe_source = html.escape(source_text)
+    return f"""
+    <details class="source-details">
+        <summary>{card_html}</summary>
+        <div class="source-full">{safe_source}</div>
+    </details>
     """
 
 
@@ -300,19 +318,20 @@ def render_item_card(
     faded: bool = False,
     show_source: bool = True,
 ) -> None:
+    has_source = bool(show_source and item.source_text and item.source_text.strip())
+
     if compact:
-        html = _compact_card_html(item)
+        card_html = _compact_card_html(item)
     else:
-        html = _card_html(item, extra)
+        card_html = _card_html(item, extra)
 
     if faded:
-        html = html.replace('class="card', 'class="card" style="opacity:0.55;"')
+        card_html = card_html.replace('class="card', 'class="card" style="opacity:0.55;"')
 
-    st.markdown(html, unsafe_allow_html=True)
-
-    if show_source and item.source_text and item.source_text.strip():
-        with st.expander("原文"):
-            st.text(item.source_text)
+    if has_source:
+        st.markdown(_source_details_html(card_html, item.source_text), unsafe_allow_html=True)
+    else:
+        st.markdown(card_html, unsafe_allow_html=True)
 
 
 # ── header ───────────────────────────────────────────────────────────────────
