@@ -79,3 +79,6 @@ class ScheduleItem(BaseModel):
 
 ## After Every Change
 State: which files changed, why, what was accomplished.
+
+## 修改时的注意事项
+不许重写整个代码，哪些语句有问题就改哪些

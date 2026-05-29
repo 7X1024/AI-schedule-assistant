@@ -204,8 +204,9 @@ st.markdown(
         color: #555;
         font-size: 12px;
         line-height: 1.55;
-        white-space: pre-wrap;
+        white-space: pre-line;
         word-break: break-word;
+        overflow-wrap: break-word;
     }
 </style>
 """,
@@ -219,11 +220,17 @@ if "todos" not in st.session_state:
     st.session_state.todos = load_todos()
 if "preview_items" not in st.session_state:
     st.session_state.preview_items: List[ScheduleItem] = []
+if "input_text_val" not in st.session_state:
+    st.session_state.input_text_val = ""
 
 
 def refresh_data() -> None:
     st.session_state.events = load_events()
     st.session_state.todos = load_todos()
+
+
+def _on_input_change() -> None:
+    st.session_state.input_text_val = st.session_state["ta_input"]
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -364,21 +371,23 @@ with col_input:
 
     notification_text = st.text_area(
         "通知文本",
+        value=st.session_state.input_text_val,
         height=240,
         placeholder="在此粘贴通知、公告、邮件、群聊消息…",
         label_visibility="collapsed",
         key="ta_input",
+        on_change=_on_input_change,
     )
 
     btn1, btn2 = st.columns(2)
     with btn1:
         if st.button("🔍 识别通知", use_container_width=True, type="primary"):
-            if not notification_text.strip():
+            if not st.session_state.input_text_val.strip():
                 st.warning("请先粘贴通知文本")
             else:
                 with st.spinner("AI 正在识别…"):
                     try:
-                        result = parse_notification(notification_text)
+                        result = parse_notification(st.session_state.input_text_val)
                         st.session_state.preview_items = result
                         if not result:
                             st.info("未识别到日程或待办事项")
@@ -388,6 +397,7 @@ with col_input:
 
     with btn2:
         if st.button("清空输入", use_container_width=True):
+            st.session_state.input_text_val = ""
             if "ta_input" in st.session_state:
                 del st.session_state["ta_input"]
             st.session_state.preview_items = []
