@@ -267,7 +267,13 @@ def _compact_card_html(item: ScheduleItem) -> str:
     """
 
 
-def render_item_card(item: ScheduleItem, compact: bool = False, extra: str = "", faded: bool = False) -> None:
+def render_item_card(
+    item: ScheduleItem,
+    compact: bool = False,
+    extra: str = "",
+    faded: bool = False,
+    show_source: bool = True,
+) -> None:
     if compact:
         html = _compact_card_html(item)
     else:
@@ -278,8 +284,11 @@ def render_item_card(item: ScheduleItem, compact: bool = False, extra: str = "",
 
     st.markdown(html, unsafe_allow_html=True)
 
-    if item.source_text and item.source_text.strip():
-        with st.expander("查看原通知"):
+    # In the 7-column week view, Streamlit expanders become too narrow and
+    # render as broken labels such as "_arr". Only show the full source
+    # expander in normal-width cards.
+    if show_source and not compact and item.source_text and item.source_text.strip():
+        with st.expander("📎 查看原通知", expanded=False):
             st.text(item.source_text)
 
 
@@ -444,7 +453,7 @@ with col_events:
 
                 if day_events:
                     for event in day_events:
-                        render_item_card(event, compact=True)
+                        render_item_card(event, compact=True, show_source=False)
                         col_del_w, _ = st.columns([1, 5])
                         with col_del_w:
                             if st.button("✕", key=f"del_w_{event.id}", help="删除"):
