@@ -284,11 +284,8 @@ def render_item_card(
 
     st.markdown(html, unsafe_allow_html=True)
 
-    # In the 7-column week view, Streamlit expanders become too narrow and
-    # render as broken labels such as "_arr". Only show the full source
-    # expander in normal-width cards.
-    if show_source and not compact and item.source_text and item.source_text.strip():
-        with st.expander("📎 查看原通知", expanded=False):
+    if show_source and item.source_text and item.source_text.strip():
+        with st.popover("", icon="📎", use_container_width=False):
             st.text(item.source_text)
 
 
