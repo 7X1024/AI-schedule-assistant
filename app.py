@@ -417,6 +417,8 @@ if event_count > 0 or all_todo_count > 0:
 else:
     st.markdown('<p style="color:#bbb;font-size:12px;margin-bottom:16px;">暂无数据</p>', unsafe_allow_html=True)
 
+today = date.today()
+
 # ── 3-column layout ──────────────────────────────────────────────────────────
 col_input, col_events, col_todos = st.columns([1, 1.2, 0.8])
 
@@ -567,7 +569,6 @@ with col_input:
 # MIDDLE: Schedule
 # ══════════════════════════════════════════════════════════════════════════════
 with col_events:
-    today = date.today()
     all_events = st.session_state.events
 
     today_events = [
