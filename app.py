@@ -267,24 +267,6 @@ else:
         st.session_state.selected_source_item = item
 
 
-    def _confirm_save() -> None:
-        user = st.session_state.user
-        saved = 0
-        for item in st.session_state.preview_items:
-            try:
-                if item.type == "event":
-                    save_event(item, user)
-                elif item.type == "todo":
-                    save_todo(item, user)
-                saved += 1
-            except Exception as e:
-                st.toast(f"保存失败: {e}", icon="❌")
-                return
-        st.session_state.preview_items = []
-        refresh_data(user)
-        st.toast(f"已保存 {saved} 条记录", icon="✅")
-
-
     # ── helpers ──────────────────────────────────────────────────────────────────
     def _parse_date(d: Optional[str]) -> Optional[date]:
         try:
@@ -563,7 +545,23 @@ else:
 
             col_confirm, col_cancel = st.columns(2)
             with col_confirm:
-                st.button("✅ 确认保存", use_container_width=True, type="primary", on_click=_confirm_save)
+                if st.button("✅ 确认保存", use_container_width=True, type="primary"):
+                    user = st.session_state.user
+                    saved = 0
+                    for item in st.session_state.preview_items:
+                        try:
+                            if item.type == "event":
+                                save_event(item, user)
+                            elif item.type == "todo":
+                                save_todo(item, user)
+                            saved += 1
+                        except Exception as e:
+                            st.toast(f"保存失败: {e}", icon="❌")
+                            st.rerun()
+                    st.session_state.preview_items = []
+                    refresh_data(user)
+                    st.toast(f"已保存 {saved} 条记录", icon="✅")
+                    st.rerun()
             with col_cancel:
                 if st.button("取消", use_container_width=True):
                     st.session_state.preview_items = []
