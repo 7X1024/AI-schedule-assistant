@@ -31,28 +31,6 @@ st.markdown(
 
     .stApp { background: #f5f5f7; }
 
-    /* ── responsive columns ── */
-    @media (max-width: 768px) {
-        [data-testid="stHorizontalBlock"] {
-            flex-wrap: wrap !important;
-        }
-        [data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-            flex: 1 1 100% !important;
-            max-width: 100% !important;
-        }
-    }
-
-    /* ── week columns: stack on mobile ── */
-    @media (max-width: 768px) {
-        .week-grid > [data-testid="stHorizontalBlock"] {
-            flex-wrap: wrap !important;
-        }
-        .week-grid > [data-testid="stHorizontalBlock"] > [data-testid="column"] {
-            flex: 1 1 48% !important;
-            max-width: 48% !important;
-        }
-    }
-
     /* ── cards ── */
     .card {
         background: #ffffff;
@@ -213,7 +191,29 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+if not st.session_state.get("pc_mode", False):
+    st.markdown(
+        """
+    <style>
+        [data-testid="stHorizontalBlock"] {
+            flex-wrap: wrap !important;
+        }
+        [data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+            flex: 1 1 100% !important;
+            max-width: 100% !important;
+        }
+        .week-grid > [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+            flex: 1 1 48% !important;
+            max-width: 48% !important;
+        }
+    </style>
+    """,
+        unsafe_allow_html=True,
+    )
+
 # ── session state init ───────────────────────────────────────────────────────
+if "pc_mode" not in st.session_state:
+    st.session_state.pc_mode = False
 if "events" not in st.session_state:
     st.session_state.events = load_events()
 if "todos" not in st.session_state:
@@ -354,11 +354,19 @@ def render_item_card(
 
 
 # ── header ───────────────────────────────────────────────────────────────────
-st.markdown(
-    '<h1 style="font-size:28px;font-weight:700;color:#1a1a1a;margin-bottom:0;">📅 AI 日程助手</h1>'
-    '<p style="color:#999;font-size:14px;margin-bottom:4px;">粘贴通知文本，AI 自动提取日程与待办</p>',
-    unsafe_allow_html=True,
-)
+col_head, col_mode_btn = st.columns([9, 1])
+with col_head:
+    st.markdown(
+        '<h1 style="font-size:28px;font-weight:700;color:#1a1a1a;margin-bottom:0;">📅 AI 日程助手</h1>'
+        '<p style="color:#999;font-size:14px;margin-bottom:4px;">粘贴通知文本，AI 自动提取日程与待办</p>',
+        unsafe_allow_html=True,
+    )
+with col_mode_btn:
+    mode_label = "🖥️" if st.session_state.pc_mode else "📱"
+    mode_help = "切换为PC版" if not st.session_state.pc_mode else "切换为手机版"
+    if st.button(mode_label, key="toggle_pc_mode", help=mode_help):
+        st.session_state.pc_mode = not st.session_state.pc_mode
+        st.rerun()
 
 event_count = len(st.session_state.events)
 all_todo_count = len(st.session_state.todos)
