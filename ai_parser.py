@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import List
 
 import streamlit as st
@@ -168,6 +168,49 @@ def _strip_markdown(text: str) -> str:
     return text.strip()
 
 
+def _resolve_dates(text: str) -> str:
+    """Replace relative date expressions in Chinese text with absolute YYYY-MM-DD."""
+    today = date.today()
+    weekday = today.weekday()
+    this_monday = today - timedelta(days=weekday)
+
+    SHORT_DAY = {"一": 0, "二": 1, "三": 2, "四": 3, "五": 4, "六": 5, "日": 6, "天": 6}
+    SHORT_RE = "|".join(SHORT_DAY)
+
+    def _d(d: date) -> str:
+        return d.strftime("%Y-%m-%d")
+
+    replacements: dict[str, str] = {
+        "今天": _d(today),
+        "明日": _d(today + timedelta(days=1)),
+        "明天": _d(today + timedelta(days=1)),
+        "后天": _d(today + timedelta(days=2)),
+        "大后天": _d(today + timedelta(days=3)),
+    }
+
+    for m in re.finditer(r"(\d+)\s*天[之以]?后", text):
+        n = int(m.group(1))
+        replacements[m.group(0)] = _d(today + timedelta(days=n))
+
+    for m in re.finditer(r"(\d+)\s*[周個]\s*[之以]?后", text):
+        n = int(m.group(1))
+        replacements[m.group(0)] = _d(today + timedelta(weeks=n))
+
+    for m in re.finditer(rf"(下*)(?:本)?\s*周\s*({SHORT_RE})", text):
+        weeks_ahead = len(m.group(1))
+        target = this_monday + timedelta(weeks=weeks_ahead, days=SHORT_DAY[m.group(2)])
+        replacements[m.group(0)] = _d(target)
+
+    for m in re.finditer(rf"星期\s*({SHORT_RE})", text):
+        target = this_monday + timedelta(days=SHORT_DAY[m.group(1)])
+        replacements[m.group(0)] = _d(target)
+
+    for pattern, replacement in sorted(replacements.items(), key=lambda x: -len(x[0])):
+        text = text.replace(pattern, replacement)
+
+    return text
+
+
 def get_client() -> OpenAI:
     api_key = st.secrets.get("DEEPSEEK_API_KEY")
     if not api_key:
@@ -177,6 +220,8 @@ def get_client() -> OpenAI:
 
 def parse_notification(text: str) -> List[ScheduleItem]:
     client = get_client()
+
+    text = _resolve_dates(text)
 
     now = datetime.now()
     weekday_cn = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
