@@ -81,4 +81,5 @@ class ScheduleItem(BaseModel):
 State: which files changed, why, what was accomplished.
 
 ## 修改时的注意事项
-不许重写整个代码，哪些语句有问题就改哪些
+1. 我告诉你我的需求之后必须先分析，等我同意后再进行文件修改
+2. 不许重写整个代码，哪些语句有问题就改哪些
