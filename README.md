@@ -45,3 +45,6 @@ streamlit run app.py
 
 ## Debug v1-2-4
 增加了点击日程显示原文的功能，目前无bug
+
+## Debug v1-3-2
+修复了日程无法删除的bug，修复了上周的事件会显示在待定事件的bug
