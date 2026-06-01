@@ -26,17 +26,6 @@ EVENTS_HEADERS = [
 
 TODOS_HEADERS = EVENTS_HEADERS  # identical schema
 
-_current_user: str = ""
-
-
-def set_current_user(user: str) -> None:
-    global _current_user
-    _current_user = user
-
-
-def get_current_user() -> str:
-    return _current_user
-
 
 # ── Google Sheets client (lazy init) ─────────────────────────────────────────
 _gs_client: Optional[gspread.Client] = None
@@ -136,7 +125,7 @@ def _row_to_item(row: List[str]) -> Optional[dict]:
     }
 
 
-def _item_to_row(item: ScheduleItem) -> List[str]:
+def _item_to_row(item: ScheduleItem, user: str) -> List[str]:
     """Convert a ScheduleItem to a row list for Google Sheets append."""
     now = datetime.now().isoformat()
     return [
@@ -157,13 +146,13 @@ def _item_to_row(item: ScheduleItem) -> List[str]:
         item.created_at or now,
         item.updated_at or now,
         item.time_period or "",
-        _current_user or "",
+        user or "",
     ]
 
 
 # ── public API (mirrors storage.py) ──────────────────────────────────────────
 
-def load_events() -> List[ScheduleItem]:
+def load_events(user: str) -> List[ScheduleItem]:
     ws = _ensure_worksheet("events", EVENTS_HEADERS)
     values = ws.get_all_values()
     if len(values) <= 1:
@@ -173,7 +162,7 @@ def load_events() -> List[ScheduleItem]:
         if not row or not row[2].strip():
             continue
         row_user = (row[17].strip() if len(row) > 17 else "") or "7X"
-        if _current_user and row_user != _current_user:
+        if user and row_user != user:
             continue
         obj = _row_to_item(row)
         if obj is None:
@@ -185,7 +174,7 @@ def load_events() -> List[ScheduleItem]:
     return items
 
 
-def load_todos() -> List[ScheduleItem]:
+def load_todos(user: str) -> List[ScheduleItem]:
     ws = _ensure_worksheet("todos", TODOS_HEADERS)
     values = ws.get_all_values()
     if len(values) <= 1:
@@ -195,7 +184,7 @@ def load_todos() -> List[ScheduleItem]:
         if not row or not row[2].strip():
             continue
         row_user = (row[17].strip() if len(row) > 17 else "") or "7X"
-        if _current_user and row_user != _current_user:
+        if user and row_user != user:
             continue
         obj = _row_to_item(row)
         if obj is None:
@@ -207,15 +196,15 @@ def load_todos() -> List[ScheduleItem]:
     return items
 
 
-def save_event(item: ScheduleItem) -> None:
+def save_event(item: ScheduleItem, user: str) -> None:
     ws = _ensure_worksheet("events", EVENTS_HEADERS)
-    row = _item_to_row(item)
+    row = _item_to_row(item, user)
     ws.append_row(row)
 
 
-def save_todo(item: ScheduleItem) -> None:
+def save_todo(item: ScheduleItem, user: str) -> None:
     ws = _ensure_worksheet("todos", TODOS_HEADERS)
-    row = _item_to_row(item)
+    row = _item_to_row(item, user)
     ws.append_row(row)
 
 

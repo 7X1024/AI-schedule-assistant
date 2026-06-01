@@ -8,7 +8,7 @@ import streamlit as st
 
 from ai_parser import parse_notification
 from models import ScheduleItem
-from sheets_storage import delete_event, delete_todo, load_events, load_todos, save_event, save_todo, set_current_user, toggle_todo, update_event
+from sheets_storage import delete_event, delete_todo, load_events, load_todos, save_event, save_todo, toggle_todo, update_event
 
 st.set_page_config(
     page_title="AI 日程助手",
@@ -234,15 +234,13 @@ if st.session_state.user is None:
                 st.error("用户名或密码错误")
     st.stop()
 
-set_current_user(st.session_state.user)
-
 # ── session state init ───────────────────────────────────────────────────────
 if "pc_mode" not in st.session_state:
     st.session_state.pc_mode = False
 if "events" not in st.session_state:
-    st.session_state.events = load_events()
+    st.session_state.events = load_events(st.session_state.user)
 if "todos" not in st.session_state:
-    st.session_state.todos = load_todos()
+    st.session_state.todos = load_todos(st.session_state.user)
 if "preview_items" not in st.session_state:
     st.session_state.preview_items: List[ScheduleItem] = []
 if "input_text_val" not in st.session_state:
@@ -251,9 +249,9 @@ if "selected_source_item" not in st.session_state:
     st.session_state.selected_source_item: Optional[ScheduleItem] = None
 
 
-def refresh_data() -> None:
-    st.session_state.events = load_events()
-    st.session_state.todos = load_todos()
+def refresh_data(user: str) -> None:
+    st.session_state.events = load_events(user)
+    st.session_state.todos = load_todos(user)
 
 
 def clear_input() -> None:
@@ -268,6 +266,24 @@ def _on_input_change() -> None:
 
 def select_source(item: ScheduleItem) -> None:
     st.session_state.selected_source_item = item
+
+
+def _confirm_save() -> None:
+    user = st.session_state.user
+    saved = 0
+    for item in st.session_state.preview_items:
+        try:
+            if item.type == "event":
+                save_event(item, user)
+            elif item.type == "todo":
+                save_todo(item, user)
+            saved += 1
+        except Exception as e:
+            st.toast(f"保存失败: {e}", icon="❌")
+            return
+    st.session_state.preview_items = []
+    refresh_data(user)
+    st.toast(f"已保存 {saved} 条记录", icon="✅")
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -548,18 +564,7 @@ with col_input:
 
         col_confirm, col_cancel = st.columns(2)
         with col_confirm:
-            if st.button("✅ 确认保存", use_container_width=True, type="primary"):
-                saved = 0
-                for item in st.session_state.preview_items:
-                    if item.type == "event":
-                        save_event(item)
-                    elif item.type == "todo":
-                        save_todo(item)
-                    saved += 1
-                st.session_state.preview_items = []
-                refresh_data()
-                st.toast(f"已保存 {saved} 条记录", icon="✅")
-                st.rerun()
+            st.button("✅ 确认保存", use_container_width=True, type="primary", on_click=_confirm_save)
         with col_cancel:
             if st.button("取消", use_container_width=True):
                 st.session_state.preview_items = []
@@ -588,7 +593,7 @@ with col_events:
             with col_del1:
                 if st.button("🗑", key=f"del_today_{event.id}", help="删除"):
                     delete_event(event.id)
-                    refresh_data()
+                    refresh_data(st.session_state.user)
                     st.rerun()
     else:
         st.markdown(
@@ -643,7 +648,7 @@ with col_events:
                         with col_del_w:
                             if st.button("✕", key=f"del_w_{event.id}", help="删除"):
                                 delete_event(event.id)
-                                refresh_data()
+                                refresh_data(st.session_state.user)
                                 st.rerun()
                         with col_src:
                             st.button("📋", key=f"src_w_{event.id}", help="查看原文", on_click=select_source, args=(event,))
@@ -700,12 +705,12 @@ with col_events:
             with col_set:
                 if st.button("📅", key=f"set_date_{event.id}", help="设置日期"):
                     update_event(event.id, {"date": new_date.isoformat(), "needs_confirmation": "FALSE"})
-                    refresh_data()
+                    refresh_data(st.session_state.user)
                     st.rerun()
             with col_del3:
                 if st.button("🗑", key=f"del_unsched_{event.id}", help="删除"):
                     delete_event(event.id)
-                    refresh_data()
+                    refresh_data(st.session_state.user)
                     st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -735,12 +740,12 @@ with col_todos:
             with col_done:
                 if st.button("✅", key=f"done_{todo.id}", help="标记完成"):
                     toggle_todo(todo.id)
-                    refresh_data()
+                    refresh_data(st.session_state.user)
                     st.rerun()
             with col_del3t:
                 if st.button("🗑", key=f"del_todo_{todo.id}", help="删除"):
                     delete_todo(todo.id)
-                    refresh_data()
+                    refresh_data(st.session_state.user)
                     st.rerun()
     else:
         st.markdown(
@@ -760,10 +765,10 @@ with col_todos:
             with col_undo:
                 if st.button("↩", key=f"undo_{todo.id}", help="恢复未完成"):
                     toggle_todo(todo.id)
-                    refresh_data()
+                    refresh_data(st.session_state.user)
                     st.rerun()
             with col_del4:
                 if st.button("🗑", key=f"del_done_{todo.id}", help="删除"):
                     delete_todo(todo.id)
-                    refresh_data()
+                    refresh_data(st.session_state.user)
                     st.rerun()
