@@ -21,9 +21,21 @@ EVENTS_HEADERS = [
     "completed", "deleted",
     "created_at", "updated_at",
     "time_period",
+    "user",
 ]
 
 TODOS_HEADERS = EVENTS_HEADERS  # identical schema
+
+_current_user: str = ""
+
+
+def set_current_user(user: str) -> None:
+    global _current_user
+    _current_user = user
+
+
+def get_current_user() -> str:
+    return _current_user
 
 
 # ── Google Sheets client (lazy init) ─────────────────────────────────────────
@@ -67,7 +79,7 @@ def _ensure_worksheet(name: str, headers: List[str]):
     try:
         ws = spreadsheet.worksheet(name)
     except WorksheetNotFound:
-        ws = spreadsheet.add_worksheet(title=name, rows=1, cols=17)
+        ws = spreadsheet.add_worksheet(title=name, rows=1, cols=18)
         ws.update("A1", [headers])
         return ws
 
@@ -145,6 +157,7 @@ def _item_to_row(item: ScheduleItem) -> List[str]:
         item.created_at or now,
         item.updated_at or now,
         item.time_period or "",
+        _current_user or "",
     ]
 
 
@@ -158,6 +171,9 @@ def load_events() -> List[ScheduleItem]:
     items: List[ScheduleItem] = []
     for row in values[1:]:
         if not row or not row[2].strip():
+            continue
+        row_user = (row[17].strip() if len(row) > 17 else "") or "7X"
+        if _current_user and row_user != _current_user:
             continue
         obj = _row_to_item(row)
         if obj is None:
@@ -177,6 +193,9 @@ def load_todos() -> List[ScheduleItem]:
     items: List[ScheduleItem] = []
     for row in values[1:]:
         if not row or not row[2].strip():
+            continue
+        row_user = (row[17].strip() if len(row) > 17 else "") or "7X"
+        if _current_user and row_user != _current_user:
             continue
         obj = _row_to_item(row)
         if obj is None:

@@ -8,7 +8,7 @@ import streamlit as st
 
 from ai_parser import parse_notification
 from models import ScheduleItem
-from sheets_storage import delete_event, delete_todo, load_events, load_todos, save_event, save_todo, toggle_todo, update_event
+from sheets_storage import delete_event, delete_todo, load_events, load_todos, save_event, save_todo, set_current_user, toggle_todo, update_event
 
 st.set_page_config(
     page_title="AI 日程助手",
@@ -211,6 +211,31 @@ if not st.session_state.get("pc_mode", False):
         unsafe_allow_html=True,
     )
 
+# ── auth ──────────────────────────────────────────────────────────────────────
+ACCOUNTS = {"7X": "123456", "Jasper": "888888888"}
+
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+if st.session_state.user is None:
+    st.markdown(
+        '<h1 style="font-size:28px;font-weight:700;color:#1a1a1a;margin-bottom:24px;">📅 AI 日程助手</h1>',
+        unsafe_allow_html=True,
+    )
+    col_lg, _ = st.columns([1, 2])
+    with col_lg:
+        username = st.text_input("用户名", key="login_user")
+        password = st.text_input("密码", type="password", key="login_pass")
+        if st.button("登录", use_container_width=True, type="primary"):
+            if username in ACCOUNTS and ACCOUNTS[username] == password:
+                st.session_state.user = username
+                st.rerun()
+            else:
+                st.error("用户名或密码错误")
+    st.stop()
+
+set_current_user(st.session_state.user)
+
 # ── session state init ───────────────────────────────────────────────────────
 if "pc_mode" not in st.session_state:
     st.session_state.pc_mode = False
@@ -354,13 +379,25 @@ def render_item_card(
 
 
 # ── header ───────────────────────────────────────────────────────────────────
-col_head, col_mode_btn = st.columns([9, 1])
+col_head, col_user_info, col_mode_btn = st.columns([7, 1.5, 1.5])
 with col_head:
     st.markdown(
         '<h1 style="font-size:28px;font-weight:700;color:#1a1a1a;margin-bottom:0;">📅 AI 日程助手</h1>'
         '<p style="color:#999;font-size:14px;margin-bottom:4px;">粘贴通知文本，AI 自动提取日程与待办</p>',
         unsafe_allow_html=True,
     )
+with col_user_info:
+    st.markdown(
+        f'<div style="text-align:right;padding-top:6px;">'
+        f'<span style="color:#6366f1;font-weight:600;">👤 {st.session_state.user}</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+    if st.button("退出", key="logout_btn"):
+        st.session_state.user = None
+        st.session_state.events = []
+        st.session_state.todos = []
+        st.rerun()
 with col_mode_btn:
     mode_label = "🖥️" if st.session_state.pc_mode else "📱"
     mode_help = "切换为PC版" if not st.session_state.pc_mode else "切换为手机版"
