@@ -8,7 +8,7 @@ import streamlit as st
 
 from ai_parser import parse_notification
 from models import ScheduleItem
-from sheets_storage import delete_event, delete_todo, load_events, load_todos, save_event, save_todo, toggle_todo
+from sheets_storage import delete_event, delete_todo, load_events, load_todos, save_event, save_todo, toggle_todo, update_event
 
 st.set_page_config(
     page_title="AI 日程助手",
@@ -462,7 +462,7 @@ with col_events:
         for event in today_events:
             render_item_card(event)
 
-            col_del1, _ = st.columns([1, 9])
+            col_del1, _ = st.columns([1.5, 8.5])
             with col_del1:
                 if st.button("🗑", key=f"del_today_{event.id}", help="删除"):
                     delete_event(event.id)
@@ -517,7 +517,7 @@ with col_events:
                 if day_events:
                     for event in day_events:
                         render_item_card(event, compact=True, show_source=False)
-                        col_del_w, col_src, _ = st.columns([1, 1, 4])
+                        col_del_w, col_src, _ = st.columns([1.2, 1.2, 3.6])
                         with col_del_w:
                             if st.button("✕", key=f"del_w_{event.id}", help="删除"):
                                 delete_event(event.id)
@@ -551,14 +551,12 @@ with col_events:
             st.rerun()
 
     # ── Unscheduled ──
-    today_ids = {e.id for e in today_events}
-    in_week_ids = {e.id for e in week_events}
-    unscheduled_events = [
-        e for e in all_events if e.id not in today_ids and e.id not in in_week_ids
+    truly_unscheduled = [
+        e for e in all_events if e.date is None
     ]
-    unscheduled_events.sort(key=lambda e: (e.priority != "high", e.priority != "medium", e.title))
+    truly_unscheduled.sort(key=lambda e: (e.priority != "high", e.priority != "medium", e.title))
 
-    if unscheduled_events:
+    if truly_unscheduled:
         st.divider()
         st.markdown(
             '<div class="section-title" style="color:#f59e0b;">⚠️ 待确认 / 未安排</div>',
@@ -566,10 +564,22 @@ with col_events:
         )
         st.caption("这些日程日期不明确，需要手动确认")
 
-        for event in unscheduled_events:
+        for event in truly_unscheduled:
             render_item_card(event)
 
-            col_del3, _ = st.columns([1, 9])
+            col_date, col_set, col_del3 = st.columns([2.5, 1.5, 1])
+            with col_date:
+                new_date = st.date_input(
+                    "日期",
+                    value=today,
+                    key=f"date_{event.id}",
+                    label_visibility="collapsed",
+                )
+            with col_set:
+                if st.button("📅", key=f"set_date_{event.id}", help="设置日期"):
+                    update_event(event.id, {"date": new_date.isoformat(), "needs_confirmation": "FALSE"})
+                    refresh_data()
+                    st.rerun()
             with col_del3:
                 if st.button("🗑", key=f"del_unsched_{event.id}", help="删除"):
                     delete_event(event.id)
@@ -599,7 +609,7 @@ with col_todos:
         for todo in active_todos:
             render_item_card(todo)
 
-            col_done, col_del3t, _ = st.columns([1, 1, 8])
+            col_done, col_del3t, _ = st.columns([1.2, 1.2, 7.6])
             with col_done:
                 if st.button("✅", key=f"done_{todo.id}", help="标记完成"):
                     toggle_todo(todo.id)
@@ -624,7 +634,7 @@ with col_todos:
         )
         for todo in completed_todos:
             render_item_card(todo, faded=True)
-            col_undo, col_del4, _ = st.columns([1, 1, 8])
+            col_undo, col_del4, _ = st.columns([1.2, 1.2, 7.6])
             with col_undo:
                 if st.button("↩", key=f"undo_{todo.id}", help="恢复未完成"):
                     toggle_todo(todo.id)

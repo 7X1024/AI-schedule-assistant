@@ -20,6 +20,7 @@ EVENTS_HEADERS = [
     "confidence", "needs_confirmation",
     "completed", "deleted",
     "created_at", "updated_at",
+    "time_period",
 ]
 
 TODOS_HEADERS = EVENTS_HEADERS  # identical schema
@@ -66,7 +67,7 @@ def _ensure_worksheet(name: str, headers: List[str]):
     try:
         ws = spreadsheet.worksheet(name)
     except WorksheetNotFound:
-        ws = spreadsheet.add_worksheet(title=name, rows=1, cols=16)
+        ws = spreadsheet.add_worksheet(title=name, rows=1, cols=17)
         ws.update("A1", [headers])
         return ws
 
@@ -111,7 +112,7 @@ def _row_to_item(row: List[str]) -> Optional[dict]:
         "end_time": row[5] or None,
         "deadline": row[6] or None,
         "location": row[7] or None,
-        "time_period": None,
+        "time_period": row[16] or None,
         "priority": row[8] or "medium",
         "source_text": row[9],
         "confidence": _safe_float(row[10]),
@@ -143,6 +144,7 @@ def _item_to_row(item: ScheduleItem) -> List[str]:
         str(item.deleted),
         item.created_at or now,
         item.updated_at or now,
+        item.time_period or "",
     ]
 
 
@@ -208,6 +210,7 @@ def delete_event(item_id: str) -> None:
             ws.update_cell(row_idx, 14, "TRUE")       # deleted (col 14)
             ws.update_cell(row_idx, 16, datetime.now().isoformat())  # updated_at
             return
+    st.warning(f"未找到要删除的事件 (id={item_id[:8]}…)，可能已被删除")
 
 
 def delete_todo(item_id: str) -> None:
@@ -220,6 +223,7 @@ def delete_todo(item_id: str) -> None:
             ws.update_cell(row_idx, 14, "TRUE")
             ws.update_cell(row_idx, 16, datetime.now().isoformat())
             return
+    st.warning(f"未找到要删除的待办 (id={item_id[:8]}…)，可能已被删除")
 
 
 def toggle_todo(item_id: str) -> Optional[bool]:
