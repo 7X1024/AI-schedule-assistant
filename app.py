@@ -423,6 +423,82 @@ with col_input:
         for i, item in enumerate(st.session_state.preview_items):
             render_item_card(item, extra="preview-card")
 
+            col_t, col_p = st.columns([3, 1])
+            with col_t:
+                item.title = st.text_input(
+                    "标题",
+                    value=item.title,
+                    key=f"pv_title_{i}",
+                    label_visibility="collapsed",
+                )
+            with col_p:
+                priorities = ["low", "medium", "high"]
+                try:
+                    pri_idx = priorities.index(item.priority)
+                except ValueError:
+                    pri_idx = 1
+                item.priority = st.selectbox(
+                    "优先级",
+                    options=priorities,
+                    index=pri_idx,
+                    format_func=lambda v: {"low": "低", "medium": "中", "high": "高"}.get(v, v),
+                    key=f"pv_pri_{i}",
+                    label_visibility="collapsed",
+                )
+
+            if item.type == "event":
+                col_d, col_s, col_e, col_l = st.columns([1.5, 0.8, 0.8, 1.5])
+                with col_d:
+                    d = _parse_date(item.date) or today
+                    item.date = st.date_input(
+                        "日期",
+                        value=d,
+                        key=f"pv_date_{i}",
+                        label_visibility="collapsed",
+                    ).isoformat()
+                with col_s:
+                    item.start_time = st.text_input(
+                        "开始",
+                        value=item.start_time or "",
+                        key=f"pv_st_{i}",
+                        label_visibility="collapsed",
+                        placeholder="HH:MM",
+                    ) or None
+                with col_e:
+                    item.end_time = st.text_input(
+                        "结束",
+                        value=item.end_time or "",
+                        key=f"pv_et_{i}",
+                        label_visibility="collapsed",
+                        placeholder="HH:MM",
+                    ) or None
+                with col_l:
+                    item.location = st.text_input(
+                        "地点",
+                        value=item.location or "",
+                        key=f"pv_loc_{i}",
+                        label_visibility="collapsed",
+                        placeholder="地点",
+                    ) or None
+            else:
+                col_dl, col_l2 = st.columns([2, 2])
+                with col_dl:
+                    item.deadline = st.text_input(
+                        "截止时间",
+                        value=item.deadline or "",
+                        key=f"pv_dl_{i}",
+                        label_visibility="collapsed",
+                        placeholder="YYYY-MM-DD HH:MM",
+                    ) or None
+                with col_l2:
+                    item.location = st.text_input(
+                        "地点",
+                        value=item.location or "",
+                        key=f"pv_loc_{i}",
+                        label_visibility="collapsed",
+                        placeholder="地点",
+                    ) or None
+
         col_confirm, col_cancel = st.columns(2)
         with col_confirm:
             if st.button("✅ 确认保存", use_container_width=True, type="primary"):
