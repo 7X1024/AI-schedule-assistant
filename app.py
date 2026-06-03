@@ -274,11 +274,12 @@ else:
         st.session_state.selected_source_item = item
 
 
-    def _edit_popover(item: ScheduleItem) -> None:
+    def _edit_popover(item: ScheduleItem, prefix: str = "") -> None:
         """Render an edit popover form for a schedule item."""
-        with st.popover("✏️", help="编辑"):
-            with st.form(f"edit_form_{item.id}"):
-                new_title = st.text_input("标题", value=item.title, key=f"edit_title_{item.id}")
+        pf = f"{prefix}_{item.id}" if prefix else item.id
+        with st.popover("✏️", help="编辑", key=f"popover_{pf}"):
+            with st.form(f"edit_form_{pf}"):
+                new_title = st.text_input("标题", value=item.title, key=f"edit_title_{pf}")
                 priorities = ["low", "medium", "high"]
                 try:
                     pri_idx = priorities.index(item.priority)
@@ -287,21 +288,21 @@ else:
                 new_priority = st.selectbox(
                     "优先级", options=priorities, index=pri_idx,
                     format_func=lambda v: {"low": "低", "medium": "中", "high": "高"}.get(v, v),
-                    key=f"edit_pri_{item.id}",
+                    key=f"edit_pri_{pf}",
                 )
                 if item.type == "event":
                     d = _parse_date(item.date) or today
-                    new_date = st.date_input("日期", value=d, key=f"edit_date_{item.id}")
-                    new_start = st.text_input("开始时间", value=item.start_time or "", key=f"edit_st_{item.id}")
-                    new_end = st.text_input("结束时间", value=item.end_time or "", key=f"edit_et_{item.id}")
-                    new_location = st.text_input("地点", value=item.location or "", key=f"edit_loc_{item.id}")
+                    new_date = st.date_input("日期", value=d, key=f"edit_date_{pf}")
+                    new_start = st.text_input("开始时间", value=item.start_time or "", key=f"edit_st_{pf}")
+                    new_end = st.text_input("结束时间", value=item.end_time or "", key=f"edit_et_{pf}")
+                    new_location = st.text_input("地点", value=item.location or "", key=f"edit_loc_{pf}")
                 else:
                     new_date = None
                     new_start = new_end = None
-                    new_deadline = st.text_input("截止时间", value=item.deadline or "", key=f"edit_dl_{item.id}")
-                    new_location = st.text_input("地点", value=item.location or "", key=f"edit_loc_{item.id}")
+                    new_deadline = st.text_input("截止时间", value=item.deadline or "", key=f"edit_dl_{pf}")
+                    new_location = st.text_input("地点", value=item.location or "", key=f"edit_loc_{pf}")
 
-                if st.form_submit_button("保存修改", key=f"edit_save_{item.id}"):
+                if st.form_submit_button("保存修改", key=f"edit_save_{pf}"):
                     user = st.session_state.user
                     updates: dict = {"title": new_title, "priority": new_priority}
                     if item.type == "event":
@@ -571,7 +572,7 @@ else:
 
                 col_edit_t, col_del_t, _ = st.columns([1, 1, 8])
                 with col_edit_t:
-                    _edit_popover(event)
+                    _edit_popover(event, "today")
                 with col_del_t:
                     if st.button("🗑", key=f"del_today_{event.id}", help="删除"):
                         delete_event(event.id)
@@ -629,7 +630,7 @@ else:
                             render_item_card(event, compact=False, show_source=False)
                             col_edit_w, col_del_w, col_src, _ = st.columns([1, 1, 1, 3])
                             with col_edit_w:
-                                _edit_popover(event)
+                                _edit_popover(event, "week")
                             with col_del_w:
                                 if st.button("✕", key=f"del_w_{event.id}", help="删除"):
                                     delete_event(event.id)
@@ -682,7 +683,7 @@ else:
 
                 col_edit_u, col_del_u, _ = st.columns([1, 1, 8])
                 with col_edit_u:
-                    _edit_popover(event)
+                    _edit_popover(event, "unsched")
                 with col_del_u:
                     if st.button("🗑", key=f"del_unsched_{event.id}", help="删除"):
                         delete_event(event.id)
@@ -714,7 +715,7 @@ else:
 
                 col_edit_td, col_done, col_del_td, _ = st.columns([1, 1, 1, 7])
                 with col_edit_td:
-                    _edit_popover(todo)
+                    _edit_popover(todo, "todo")
                 with col_done:
                     if st.button("✅", key=f"done_{todo.id}", help="标记完成"):
                         toggle_todo(todo.id)
