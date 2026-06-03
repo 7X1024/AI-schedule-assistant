@@ -173,6 +173,15 @@ st.markdown(
     .source-details .compact-card {
         margin-bottom: 0;
     }
+    [data-testid="stPopover"] > details > summary {
+        list-style: none;
+    }
+    [data-testid="stPopover"] > details > summary::-webkit-details-marker {
+        display: none;
+    }
+    [data-testid="stPopover"] > details > summary::marker {
+        content: "";
+    }
     .source-full {
         margin-top: 6px;
         padding: 10px 12px;
