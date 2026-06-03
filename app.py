@@ -219,7 +219,7 @@ if not st.session_state.get("pc_mode", False):
     )
 
 # ── auth ──────────────────────────────────────────────────────────────────────
-ACCOUNTS = {"7X": "123456", "Jasper": "888888888", "lanmao": "97952"}
+ACCOUNTS = {"7X": "123456", "Jasper": "888888888", "lanmao": "97952", "RBumaro": "Anan_1122"}
 
 if "user" not in st.session_state:
     st.session_state.user = None
