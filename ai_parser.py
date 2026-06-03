@@ -18,27 +18,12 @@ TODAY'S CONTEXT:
 - Current weekday: {today_weekday}
 - Current time: {current_time}
 
-Date resolution rules (use today's context to resolve into YYYY-MM-DD):
-- "今天" → {today_date}
-- "明天" → tomorrow's date
-- "后天" → the day after tomorrow
-- "本周六"/"本周日" → the specific date this week
-- "下周三" → the specific date next week
-- "周五" (no qualifier) → the upcoming Friday of this week
-
-Only set needs_confirmation=true and date=null for TRULY ambiguous expressions:
-- "下周" (which week?)
-- "尽快" / "近期" / "有空的时候"
-- "周五之前" (which Friday?)
-- Tasks with NO date/time hint at all (e.g. "记得买礼物")
-- vague time like "下午" without any date reference
-
 ═══════════════════════════════════════
-CRITICAL: SPLITTING RULES
+SPLITTING RULES
 ═══════════════════════════════════════
 When the user provides MULTIPLE events/todos in ONE message, split them
 into separate JSON objects. Natural boundaries include:
-  - Line breaks (each line is usually one item)
+  - Line breaks
   - Numbered items (1. 2. 3.)
   - Bullet points (- • *)
   - Keywords: "还有", "另外", "此外", "以及", "同时"
@@ -53,68 +38,6 @@ When unsure, split into MORE items.
 Tasks with NO date/time hint (e.g. "记得买礼物", "整理文件") MUST still
 be extracted as separate todo items with date=null, needs_confirmation=true.
 
-Example input:
-"明天下午3点在会议室A开项目评审会，周五之前提交周报，下周一找张总讨论预算，记得买生日礼物"
-
-Example output:
-[
-  {{
-    "type": "event",
-    "title": "项目评审会",
-    "date": "2026-06-02",
-    "start_time": "15:00",
-    "end_time": null,
-    "deadline": null,
-    "location": "会议室A",
-    "time_period": null,
-    "priority": "medium",
-    "source_text": "明天下午3点在会议室A开项目评审会",
-    "confidence": 0.95,
-    "needs_confirmation": false
-  }},
-  {{
-    "type": "todo",
-    "title": "提交周报",
-    "date": null,
-    "start_time": null,
-    "end_time": null,
-    "deadline": "2026-06-05 23:59",
-    "location": null,
-    "time_period": null,
-    "priority": "medium",
-    "source_text": "周五之前提交周报",
-    "confidence": 0.9,
-    "needs_confirmation": false
-  }},
-  {{
-    "type": "event",
-    "title": "与张总讨论预算",
-    "date": "2026-06-08",
-    "start_time": null,
-    "end_time": null,
-    "deadline": null,
-    "location": null,
-    "time_period": null,
-    "priority": "medium",
-    "source_text": "下周一找张总讨论预算",
-    "confidence": 0.9,
-    "needs_confirmation": false
-  }},
-  {{
-    "type": "todo",
-    "title": "买生日礼物",
-    "date": null,
-    "start_time": null,
-    "end_time": null,
-    "deadline": null,
-    "location": null,
-    "time_period": null,
-    "priority": "low",
-    "source_text": "记得买生日礼物",
-    "confidence": 0.7,
-    "needs_confirmation": true
-  }}
-]
 ═══════════════════════════════════════
 
 Return ONLY a valid JSON array. No markdown code blocks, no explanations, no other text.
@@ -136,27 +59,27 @@ Each item in the array must have this structure:
 }}
 
 Field descriptions:
-- type: "event" for scheduled items (has date/time), "todo" for tasks without a fixed time slot (has deadline or no time at all)
+- type: "event" for scheduled items (has date/time), "todo" for tasks without a fixed time slot (has deadline or no time info at all)
 - title: concise summary in Chinese
-- date: YYYY-MM-DD, resolved from relative dates using today's context; null if unresolvable
+- date: YYYY-MM-DD — copy the date that already appears in the text; null only if no date is present
 - start_time: HH:MM (24h), or null
 - end_time: HH:MM (24h), or null
-- deadline: YYYY-MM-DD HH:MM, or null (for todos with a due date)
+- deadline: YYYY-MM-DD HH:MM, or null
 - location: place name, or null
 - time_period: "morning"(6-11), "noon"(11-13), "afternoon"(13-17), "evening"(17-21), "night"(21-6), or null if exact time given or no time info
-- priority: "low", "medium", or "high". Use context clues: "紧急"/"立即"/"马上" → high; normal tasks → medium; "有空"/"抽空"/"顺便" → low
-- source_text: the EXACT text fragment from the input for THIS item only, not the whole message
-- confidence: 0.0 to 1.0. Use 0.9+ when date/time is clear; 0.6-0.8 when moderately ambiguous; 0.3-0.5 for pure todos with no time hint
-- needs_confirmation: true ONLY if date/time is truly unresolvable even with today's context, or for pure todos with no time info at all
+- priority: "low", "medium", or "high"
+- source_text: copy the exact text fragment from the user message for this item
+- confidence: 0.0 to 1.0; 0.9+ when date is present in text; 0.5 when only time_period is given; 0.3 for pure todos
+- needs_confirmation: true ONLY if date is null AND no time_period, or for pure todos with no date/time at all
 
 Critical rules:
-- Split multi-item input into separate array items (see SPLITTING RULES above)
-- Use today's context to resolve relative dates into exact YYYY-MM-DD whenever possible
-- If a date IS resolvable, set needs_confirmation to false and confidence to 0.9+
-- time_period is required when a time like "下午"/"晚上" is mentioned but no exact HH:MM is given
+- Dates in the user's text are ALREADY in YYYY-MM-DD format. Copy them directly into the date field. Do NOT compute or recalculate dates.
+- Split multi-item input into separate array items
+- If a date is present, set needs_confirmation to false and confidence to 0.9+
+- time_period is required when a time expression like "下午"/"晚上" is mentioned but no exact HH:MM is given
 - source_text must be the exact text snippet for that specific item only
-- Pure todos with no date/time at all MUST still be extracted as separate items with needs_confirmation=true
-- If the notification contains no events or todos at all, return []
+- Pure todos with no date/time at all MUST be extracted as separate items with needs_confirmation=true
+- If the notification contains no events or todos, return []
 - Return ONLY the JSON array, nothing else\
 """
 
