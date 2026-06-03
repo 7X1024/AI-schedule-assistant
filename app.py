@@ -274,6 +274,52 @@ else:
         st.session_state.selected_source_item = item
 
 
+    def _edit_popover(item: ScheduleItem) -> None:
+        """Render an edit popover form for a schedule item."""
+        with st.popover("✏️", help="编辑"):
+            with st.form(f"edit_form_{item.id}"):
+                new_title = st.text_input("标题", value=item.title, key=f"edit_title_{item.id}")
+                priorities = ["low", "medium", "high"]
+                try:
+                    pri_idx = priorities.index(item.priority)
+                except ValueError:
+                    pri_idx = 1
+                new_priority = st.selectbox(
+                    "优先级", options=priorities, index=pri_idx,
+                    format_func=lambda v: {"low": "低", "medium": "中", "high": "高"}.get(v, v),
+                    key=f"edit_pri_{item.id}",
+                )
+                if item.type == "event":
+                    d = _parse_date(item.date) or today
+                    new_date = st.date_input("日期", value=d, key=f"edit_date_{item.id}")
+                    new_start = st.text_input("开始时间", value=item.start_time or "", key=f"edit_st_{item.id}")
+                    new_end = st.text_input("结束时间", value=item.end_time or "", key=f"edit_et_{item.id}")
+                    new_location = st.text_input("地点", value=item.location or "", key=f"edit_loc_{item.id}")
+                else:
+                    new_date = None
+                    new_start = new_end = None
+                    new_deadline = st.text_input("截止时间", value=item.deadline or "", key=f"edit_dl_{item.id}")
+                    new_location = st.text_input("地点", value=item.location or "", key=f"edit_loc_{item.id}")
+
+                if st.form_submit_button("保存修改", key=f"edit_save_{item.id}"):
+                    user = st.session_state.user
+                    updates: dict = {"title": new_title, "priority": new_priority}
+                    if item.type == "event":
+                        updates["date"] = new_date.isoformat()
+                        updates["start_time"] = new_start or ""
+                        updates["end_time"] = new_end or ""
+                    else:
+                        updates["deadline"] = new_deadline or ""
+                    updates["location"] = new_location or ""
+                    updates["needs_confirmation"] = "FALSE"
+                    if item.type == "event":
+                        update_event(item.id, updates)
+                    else:
+                        update_todo(item.id, updates)
+                    refresh_data(user)
+                    st.rerun()
+
+
     # ── helpers ──────────────────────────────────────────────────────────────────
     def _parse_date(d: Optional[str]) -> Optional[date]:
         try:
@@ -471,86 +517,16 @@ else:
             st.markdown('<div class="section-title">👀 识别预览</div>', unsafe_allow_html=True)
             st.caption("请确认以下内容，确认后才会保存")
 
-            with st.form("preview_form"):
-                for i, item in enumerate(st.session_state.preview_items):
+            for i, item in enumerate(st.session_state.preview_items):
+                col_card, col_del = st.columns([10, 1])
+                with col_card:
                     render_item_card(item, extra="preview-card")
+                with col_del:
+                    if st.button("✕", key=f"pv_del_{i}", help="移除此条"):
+                        st.session_state.preview_items.pop(i)
+                        st.rerun()
 
-                    col_t, col_p = st.columns([3, 1])
-                    with col_t:
-                        item.title = st.text_input(
-                            "标题",
-                            value=item.title,
-                            key=f"pv_title_{i}",
-                            label_visibility="collapsed",
-                        )
-                    with col_p:
-                        priorities = ["low", "medium", "high"]
-                        try:
-                            pri_idx = priorities.index(item.priority)
-                        except ValueError:
-                            pri_idx = 1
-                        item.priority = st.selectbox(
-                            "优先级",
-                            options=priorities,
-                            index=pri_idx,
-                            format_func=lambda v: {"low": "低", "medium": "中", "high": "高"}.get(v, v),
-                            key=f"pv_pri_{i}",
-                            label_visibility="collapsed",
-                        )
-
-                    if item.type == "event":
-                        col_d, col_s, col_e, col_l = st.columns([1.5, 0.8, 0.8, 1.5])
-                        with col_d:
-                            d = _parse_date(item.date) or today
-                            item.date = st.date_input(
-                                "日期",
-                                value=d,
-                                key=f"pv_date_{i}",
-                                label_visibility="collapsed",
-                            ).isoformat()
-                        with col_s:
-                            item.start_time = st.text_input(
-                                "开始",
-                                value=item.start_time or "",
-                                key=f"pv_st_{i}",
-                                label_visibility="collapsed",
-                                placeholder="HH:MM",
-                            ) or None
-                        with col_e:
-                            item.end_time = st.text_input(
-                                "结束",
-                                value=item.end_time or "",
-                                key=f"pv_et_{i}",
-                                label_visibility="collapsed",
-                                placeholder="HH:MM",
-                            ) or None
-                        with col_l:
-                            item.location = st.text_input(
-                                "地点",
-                                value=item.location or "",
-                                key=f"pv_loc_{i}",
-                                label_visibility="collapsed",
-                                placeholder="地点",
-                            ) or None
-                    else:
-                        col_dl, col_l2 = st.columns([2, 2])
-                        with col_dl:
-                            item.deadline = st.text_input(
-                                "截止时间",
-                                value=item.deadline or "",
-                                key=f"pv_dl_{i}",
-                                label_visibility="collapsed",
-                                placeholder="YYYY-MM-DD HH:MM",
-                            ) or None
-                        with col_l2:
-                            item.location = st.text_input(
-                                "地点",
-                                value=item.location or "",
-                                key=f"pv_loc_{i}",
-                                label_visibility="collapsed",
-                                placeholder="地点",
-                            ) or None
-
+            with st.form("preview_form"):
                 submitted = st.form_submit_button("✅ 确认保存", use_container_width=True, type="primary")
 
             if submitted:
@@ -593,8 +569,10 @@ else:
             for event in today_events:
                 render_item_card(event)
 
-                col_del1, _ = st.columns([1.5, 8.5])
-                with col_del1:
+                col_edit_t, col_del_t, _ = st.columns([1, 1, 8])
+                with col_edit_t:
+                    _edit_popover(event)
+                with col_del_t:
                     if st.button("🗑", key=f"del_today_{event.id}", help="删除"):
                         delete_event(event.id)
                         refresh_data(st.session_state.user)
@@ -649,7 +627,9 @@ else:
                     if day_events:
                         for event in day_events:
                             render_item_card(event, compact=False, show_source=False)
-                            col_del_w, col_src, _ = st.columns([1.2, 1.2, 3.6])
+                            col_edit_w, col_del_w, col_src, _ = st.columns([1, 1, 1, 3])
+                            with col_edit_w:
+                                _edit_popover(event)
                             with col_del_w:
                                 if st.button("✕", key=f"del_w_{event.id}", help="删除"):
                                     delete_event(event.id)
@@ -700,20 +680,10 @@ else:
             for event in truly_unscheduled:
                 render_item_card(event)
 
-                col_date, col_set, col_del3 = st.columns([2.5, 1.5, 1])
-                with col_date:
-                    new_date = st.date_input(
-                        "日期",
-                        value=today,
-                        key=f"date_{event.id}",
-                        label_visibility="collapsed",
-                    )
-                with col_set:
-                    if st.button("📅", key=f"set_date_{event.id}", help="设置日期"):
-                        update_event(event.id, {"date": new_date.isoformat(), "needs_confirmation": "FALSE"})
-                        refresh_data(st.session_state.user)
-                        st.rerun()
-                with col_del3:
+                col_edit_u, col_del_u, _ = st.columns([1, 1, 8])
+                with col_edit_u:
+                    _edit_popover(event)
+                with col_del_u:
                     if st.button("🗑", key=f"del_unsched_{event.id}", help="删除"):
                         delete_event(event.id)
                         refresh_data(st.session_state.user)
@@ -742,13 +712,15 @@ else:
             for todo in active_todos:
                 render_item_card(todo)
 
-                col_done, col_del3t, _ = st.columns([1.2, 1.2, 7.6])
+                col_edit_td, col_done, col_del_td, _ = st.columns([1, 1, 1, 7])
+                with col_edit_td:
+                    _edit_popover(todo)
                 with col_done:
                     if st.button("✅", key=f"done_{todo.id}", help="标记完成"):
                         toggle_todo(todo.id)
                         refresh_data(st.session_state.user)
                         st.rerun()
-                with col_del3t:
+                with col_del_td:
                     if st.button("🗑", key=f"del_todo_{todo.id}", help="删除"):
                         delete_todo(todo.id)
                         refresh_data(st.session_state.user)
