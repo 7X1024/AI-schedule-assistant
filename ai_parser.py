@@ -39,6 +39,37 @@ Tasks with NO date/time hint (e.g. "记得买礼物", "整理文件") MUST still
 be extracted as separate todo items with date=null, needs_confirmation=true.
 
 ═══════════════════════════════════════
+TYPE CLASSIFICATION RULES
+═══════════════════════════════════════
+Classify each item as "event" or "todo" by SEMANTIC MEANING, not by
+whether a date/time is present in the text.
+
+EVENT — the person must GO somewhere and DO something at a specific time.
+  Action verbs: 去, 开(会), 参加, 见, 上(课), 听, 看(演出), 讲, 演示, 出差
+  The text describes attending/participating, not producing a result.
+  Examples: "周五开项目评审会", "明天下午见客户"
+
+TODO — the person must PRODUCE/DELIVER/COMPLETE something.
+  Action verbs: 交, 提交, 写完, 做好, 处理, 搞定, 准备, 完成, 整理, 买
+  The text describes a deliverable or completion, often with deadline feel.
+  Examples: "周五交报告", "下周写完方案", "买生日礼物"
+
+FORCE-TODO signals (regardless of verb):
+  Text contains: "之前", "截止", "ddl", "为止", "deadline"
+  → type = "todo", put the date in the deadline field.
+  Example: "下午五点之前交上报告" → todo
+
+PURE TODO — no date, no time, no deadline:
+  → type = "todo", date=null, deadline=null, needs_confirmation=true
+
+DATE FIELD RULE:
+  - event: put the date in the "date" field; deadline=null
+  - todo: put the deadline date in the "deadline" field (format "YYYY-MM-DD 23:59"); date=null
+  - Do NOT put a date in both fields.
+
+When truly unsure, default to "event".
+
+═══════════════════════════════════════
 
 Return ONLY a valid JSON array. No markdown code blocks, no explanations, no other text.
 
@@ -59,7 +90,7 @@ Each item in the array must have this structure:
 }}
 
 Field descriptions:
-- type: "event" for scheduled items (has date/time), "todo" for tasks without a fixed time slot (has deadline or no time info at all)
+- type: "event" or "todo" — see TYPE CLASSIFICATION RULES above
 - title: concise summary in Chinese
 - date: YYYY-MM-DD — copy the date that already appears in the text; null only if no date is present
 - start_time: HH:MM (24h), or null

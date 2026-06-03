@@ -202,9 +202,16 @@ if not st.session_state.get("pc_mode", False):
             flex: 1 1 100% !important;
             max-width: 100% !important;
         }
+        .week-grid > [data-testid="stHorizontalBlock"] {
+            flex-wrap: nowrap !important;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scroll-snap-type: x mandatory;
+        }
         .week-grid > [data-testid="stHorizontalBlock"] > [data-testid="column"] {
-            flex: 1 1 48% !important;
-            max-width: 48% !important;
+            flex: 0 0 85vw !important;
+            max-width: 85vw !important;
+            scroll-snap-align: start;
         }
     </style>
     """,
@@ -622,6 +629,7 @@ else:
         weekday_names = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
 
         if week_events:
+            st.markdown('<div class="week-grid">', unsafe_allow_html=True)
             day_cols = st.columns(7)
             for i in range(7):
                 day = sel_monday + timedelta(days=i)
@@ -640,7 +648,7 @@ else:
 
                     if day_events:
                         for event in day_events:
-                            render_item_card(event, compact=True, show_source=False)
+                            render_item_card(event, compact=False, show_source=False)
                             col_del_w, col_src, _ = st.columns([1.2, 1.2, 3.6])
                             with col_del_w:
                                 if st.button("✕", key=f"del_w_{event.id}", help="删除"):
@@ -654,6 +662,7 @@ else:
                             '<div style="text-align:center;color:#ddd;font-size:11px;padding:8px;">—</div>',
                             unsafe_allow_html=True,
                         )
+            st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.markdown(
                 '<div class="empty-state">该周暂无其他日程</div>', unsafe_allow_html=True
