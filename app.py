@@ -569,7 +569,6 @@ else:
                 st.session_state.preview_items = []
                 refresh_data(user)
                 st.toast(f"已保存 {saved} 条记录", icon="✅")
-                st.rerun()
 
             if st.button("取消", use_container_width=True):
                 st.session_state.preview_items = []
