@@ -8,7 +8,7 @@ import streamlit as st
 
 from ai_parser import parse_notification
 from models import ScheduleItem
-from sheets_storage import delete_event, delete_todo, load_events, load_todos, save_event, save_todo, toggle_todo, update_event
+from sheets_storage import delete_event, delete_todo, load_events, load_todos, save_event, save_todo, toggle_todo, update_event, update_todo
 
 st.set_page_config(
     page_title="AI 日程助手",
@@ -22,9 +22,32 @@ st.markdown(
     """
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,400,0,0&display=swap');
 
     html, body, [class*="st-"] {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .material-icons,
+    .material-symbols,
+    .material-symbols-outlined,
+    .material-symbols-rounded,
+    .material-symbols-sharp,
+    [data-testid="stIconMaterial"] {
+        font-family: 'Material Symbols Rounded' !important;
+        font-weight: normal !important;
+        font-style: normal !important;
+        font-size: 18px !important;
+        line-height: 1 !important;
+        letter-spacing: normal !important;
+        text-transform: none !important;
+        display: inline-block !important;
+        white-space: nowrap !important;
+        word-wrap: normal !important;
+        direction: ltr !important;
+        -webkit-font-feature-settings: 'liga' !important;
+        -webkit-font-smoothing: antialiased !important;
+        font-feature-settings: 'liga' !important;
     }
 
     #MainMenu, footer, header { visibility: hidden; }
@@ -181,6 +204,9 @@ st.markdown(
     }
     [data-testid="stPopover"] > details > summary::marker {
         content: "";
+    }
+    [data-testid="stPopover"] [data-testid="stIconMaterial"] {
+        display: none !important;
     }
     .source-full {
         margin-top: 6px;
@@ -541,20 +567,23 @@ else:
 
             if submitted:
                 user = st.session_state.user
-                saved = 0
+                saved_ranges = []
                 for item in st.session_state.preview_items:
                     try:
                         if item.type == "event":
-                            save_event(item, user)
+                            saved_range = save_event(item, user)
                         elif item.type == "todo":
-                            save_todo(item, user)
-                        saved += 1
+                            saved_range = save_todo(item, user)
+                        else:
+                            raise ValueError(f"未知类型: {item.type}")
+                        saved_ranges.append(saved_range)
                     except Exception as e:
-                        st.toast(f"保存失败: {e}", icon="❌")
-                        st.rerun()
-                st.session_state.preview_items = []
-                refresh_data(user)
-                st.toast(f"已保存 {saved} 条记录", icon="✅")
+                        st.error(f"保存失败: {item.title} → {e}")
+                        break
+                else:
+                    st.session_state.preview_items = []
+                    refresh_data(user)
+                    st.success(f"已保存 {len(saved_ranges)} 条记录: {', '.join(saved_ranges)}")
 
             if st.button("取消", use_container_width=True):
                 st.session_state.preview_items = []
@@ -760,4 +789,3 @@ else:
                         delete_todo(todo.id)
                         refresh_data(st.session_state.user)
                         st.rerun()
-

@@ -150,6 +150,26 @@ def _item_to_row(item: ScheduleItem, user: str) -> List[str]:
     ]
 
 
+def _worksheet_has_item(ws, item_id: str) -> bool:
+    """Confirm an appended row is visible in the sheet by checking the id column."""
+    return item_id in ws.col_values(1)
+
+
+def _append_item(sheet_name: str, headers: List[str], item: ScheduleItem, user: str) -> str:
+    ws = _ensure_worksheet(sheet_name, headers)
+    row = _item_to_row(item, user)
+    response = ws.append_row(row, value_input_option="RAW")
+
+    if not _worksheet_has_item(ws, item.id):
+        raise RuntimeError(f"Google Sheets 返回成功，但在 {sheet_name} 表页回查不到该记录")
+
+    if isinstance(response, dict):
+        updated_range = response.get("updates", {}).get("updatedRange")
+        if updated_range:
+            return updated_range
+    return f"{sheet_name} 表页"
+
+
 # ── public API (mirrors storage.py) ──────────────────────────────────────────
 
 def load_events(user: str) -> List[ScheduleItem]:
@@ -196,16 +216,12 @@ def load_todos(user: str) -> List[ScheduleItem]:
     return items
 
 
-def save_event(item: ScheduleItem, user: str) -> None:
-    ws = _ensure_worksheet("events", EVENTS_HEADERS)
-    row = _item_to_row(item, user)
-    ws.append_row(row)
+def save_event(item: ScheduleItem, user: str) -> str:
+    return _append_item("events", EVENTS_HEADERS, item, user)
 
 
-def save_todo(item: ScheduleItem, user: str) -> None:
-    ws = _ensure_worksheet("todos", TODOS_HEADERS)
-    row = _item_to_row(item, user)
-    ws.append_row(row)
+def save_todo(item: ScheduleItem, user: str) -> str:
+    return _append_item("todos", TODOS_HEADERS, item, user)
 
 
 def delete_event(item_id: str) -> None:
