@@ -583,7 +583,9 @@ else:
                 else:
                     st.session_state.preview_items = []
                     refresh_data(user)
-                    st.success(f"已保存 {len(saved_ranges)} 条记录: {', '.join(saved_ranges)}")
+                    saved_locations = [str(saved_range) for saved_range in saved_ranges if saved_range]
+                    location_text = f": {', '.join(saved_locations)}" if saved_locations else ""
+                    st.success(f"已保存 {len(saved_ranges)} 条记录{location_text}")
 
             if st.button("取消", use_container_width=True):
                 st.session_state.preview_items = []

@@ -164,9 +164,10 @@ def _append_item(sheet_name: str, headers: List[str], item: ScheduleItem, user: 
         raise RuntimeError(f"Google Sheets 返回成功，但在 {sheet_name} 表页回查不到该记录")
 
     if isinstance(response, dict):
-        updated_range = response.get("updates", {}).get("updatedRange")
+        updates = response.get("updates", {})
+        updated_range = updates.get("updatedRange") if isinstance(updates, dict) else None
         if updated_range:
-            return updated_range
+            return str(updated_range)
     return f"{sheet_name} 表页"
 
 
