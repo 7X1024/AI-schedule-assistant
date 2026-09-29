@@ -8,10 +8,13 @@ import streamlit as st
 
 from ai_parser import parse_notification
 from models import ScheduleItem
-from sheets_storage import delete_event, delete_todo, load_events, load_todos, save_event, save_todo, toggle_todo, update_event, update_todo
+from d1_storage import delete_event, delete_todo, load_events, load_todos, save_event, save_todo, toggle_todo, update_event, update_todo
 
 # 同一个模块再绑一个名字：A7 的诊断通道用 getattr 探测，函数缺失/改名时降级而不是崩溃
-import sheets_storage
+# 换存储层时这里要跟着改，并且用 `as sheets_storage` 保留旧名，
+# 好让下面 388/414/518/531 四处 get_diagnostics / SKIPPED_MARKER /
+# get_last_save_outcome 的引用一行都不用改。
+import d1_storage as sheets_storage
 
 st.set_page_config(
     page_title="AI 日程助手",
