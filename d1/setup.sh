@@ -84,19 +84,47 @@ ok "已登录"
 
 # ── 3. account_id ────────────────────────────────────────────────────────────
 step "读取 Account ID"
-WHOAMI="$(wr whoami 2>&1 || true)"
-ACCOUNT_ID="$(printf '%s' "$WHOAMI" | grep -oE '\b[0-9a-f]{32}\b' | head -1 || true)"
-[ -n "$ACCOUNT_ID" ] || die "没能从 wrangler whoami 里读到 Account ID。手动执行 wrangler whoami 看输出"
+# 收集原始输出备用。wrangler 4.x 的 whoami 是一张带边框的表格，格式随版本变过，
+# 所以解析失败时必须把原文打出来，否则用户只会看到一句没用的报错。
+WHOAMI_RAW="$(wr whoami 2>&1 || true)"
+# 去掉 ANSI 颜色码再匹配，否则转义序列会插在字符中间
+ESC=$'\033'
+WHOAMI="$(printf '%s' "$WHOAMI_RAW" | sed "s/${ESC}\\[[0-9;]*m//g")"
+
+ACCOUNT_ID=""
+for pat in \
+  '(?i)account[ _-]?id[^0-9a-f]*([0-9a-f]{32})' \
+  '\b([0-9a-f]{32})\b' \
+  '\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b'
+do
+  ACCOUNT_ID="$(printf '%s' "$WHOAMI" | grep -oE "$pat" | head -1 | grep -oE '[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 || true)"
+  [ -n "$ACCOUNT_ID" ] && break
+done
+
+if [ -n "$ACCOUNT_ID" ]; then
+  ok "Account ID：$ACCOUNT_ID"
+else
+  say "  ${YEL}没能自动认出 Account ID。下面是 wrangler whoami 的原始输出：${OFF}"
+  printf '%s\n' "$WHOAMI" | sed 's/^/    /'
+  say ""
+  say "  ${DIM}这一项在 Cloudflare 控制台右上角 → My Profile 里能看到，${OFF}"
+  say "  ${DIM}你也可以手动改：把 d1/wrangler.toml 里 account_id = \"...\" 那行${OFF}"
+  say "  ${DIM}换成控制台上的 32 位十六进制值，再重跑本脚本。${OFF}"
+  say ""
+  say "  ${DIM}（它只是 wrangler.toml 里的一个配置项，填错了 wrangler 会直接报${OFF}"
+  say "  ${DIM}  \"invalid account id\"，不会把别的东西弄坏。）${OFF}"
+  exit 1
+fi
+
 if grep -q '^account_id = "REPLACE' wrangler.toml; then
-  # macOS 的 sed 需要 -i ''，Linux 不需要
   if [[ "$(uname)" == "Darwin" ]]; then
     sed -i '' "s|^account_id = \".*\"|account_id = \"$ACCOUNT_ID\"|" wrangler.toml
   else
     sed -i "s|^account_id = \".*\"|account_id = \"$ACCOUNT_ID\"|" wrangler.toml
   fi
-  ok "已写入 wrangler.toml：$ACCOUNT_ID"
+  ok "已写入 wrangler.toml"
 else
-  ok "wrangler.toml 里已填好，未改动"
+  say "  wrangler.toml 里已填过，保留原值：$(grep '^account_id' wrangler.toml | cut -d'"' -f2)"
 fi
 
 # ── 4. database_id ───────────────────────────────────────────────────────────
