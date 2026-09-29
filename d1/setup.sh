@@ -21,6 +21,23 @@ ok()   { printf '%s✓ %s%s\n' "$GRN" "$*" "$OFF"; }
 
 command -v node >/dev/null || die "没找到 node，请先装 Node.js 18+（https://nodejs.org）"
 
+# ── 0. npm 镜像（国内直连官方源很慢）────────────────────────────────────────
+# 不需要梯子。国内镜像同步官方源，内容完全一致，只是走 CDN 快很多。
+REG="$(npm config get registry 2>/dev/null || echo '')"
+case "$REG" in
+  *npmmirror*|*tencent*|*huaweicloud*)
+    ok "npm 镜像：$REG" ;;
+  *)
+    say "  当前 npm 源是 ${REG:-（默认）}，国内直连偏慢，切到国内镜像…"
+    if npm config set registry https://registry.npmmirror.com >/dev/null 2>&1; then
+      ok "已切到 https://registry.npmmirror.com（只影响下载速度，可随时用 npm config set registry 换回去）"
+    else
+      say "  ${DIM}切换失败，继续用当前源，可能慢一点${OFF}"
+    fi ;;
+esac
+say "  ${DIM}提示：不要挂代理做 wrangler login——Cloudflare 对代理 IP 有风控，"
+say "  挂代理反而更容易撞上 403 验证页。${OFF}"
+
 # ── 1. wrangler ──────────────────────────────────────────────────────────────
 step "检查 wrangler"
 if command -v wrangler >/dev/null; then
