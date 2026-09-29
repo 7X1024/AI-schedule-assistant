@@ -35,7 +35,7 @@ case "$REG" in
       say "  ${DIM}切换失败，继续用当前源，可能慢一点${OFF}"
     fi ;;
 esac
-say "  ${DIM}提示：不要挂代理做 wr login——Cloudflare 对代理 IP 有风控，"
+say "  ${DIM}提示：不要挂代理做 wrangler login——Cloudflare 对代理 IP 有风控，"
 say "  挂代理反而更容易撞上 403 验证页。${OFF}"
 
 # ── 1. wr ──────────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ if command -v wrangler >/dev/null 2>&1; then
 else
   say "  没有全局安装，改用 npx 运行（装在你自己目录，不需要管理员权限）"
   say "  第一次会下载 wrangler，大约十几秒…"
-  wr --version >/dev/null 2>&1 || die "npx wr 跑不起来。请检查 node/npm 是否正常：node -v"
+  wr --version >/dev/null 2>&1 || die "npx 方式跑不起来。先确认 node 和 npm 正常：node -v && npm -v"
   ok "就绪（通过 npx）"
 fi
 
@@ -64,7 +64,7 @@ fi
 step "检查登录状态"
 if ! wr whoami >/dev/null 2>&1; then
   say "  浏览器会弹出来，登录并点「Allow」…"
-  wr login >/dev/null 2>&1 || die "wr login 失败"
+  wr login >/dev/null 2>&1 || die "wrangler login 失败。若报 403 或 bot challenge，先别重试——发我，我给你换 API Token 的方案"
 fi
 ok "已登录"
 
@@ -72,7 +72,7 @@ ok "已登录"
 step "读取 Account ID"
 WHOAMI="$(wr whoami 2>&1 || true)"
 ACCOUNT_ID="$(printf '%s' "$WHOAMI" | grep -oE '\b[0-9a-f]{32}\b' | head -1 || true)"
-[ -n "$ACCOUNT_ID" ] || die "没能从 wr whoami 里读到 Account ID。手动执行：wr whoami"
+[ -n "$ACCOUNT_ID" ] || die "没能从 wrangler whoami 里读到 Account ID。手动执行 wrangler whoami 看输出"
 if grep -q '^account_id = "REPLACE' wrangler.toml; then
   # macOS 的 sed 需要 -i ''，Linux 不需要
   if [[ "$(uname)" == "Darwin" ]]; then
@@ -89,7 +89,7 @@ fi
 step "准备数据库"
 if grep -q '^database_id = "REPLACE' wrangler.toml; then
   say "  正在建库 schedule…"
-  OUT="$(wr d1 create schedule 2>&1)" || { printf '%s\n' "$OUT" >&2; die "wr d1 create 失败"; }
+  OUT="$(wr d1 create schedule 2>&1)" || { printf '%s\n' "$OUT" >&2; die "wrangler d1 create schedule 失败"; }
   DB_ID="$(printf '%s' "$OUT" | grep -oE '\b[0-9a-fA-F-]{36}\b' | head -1 || true)"
   [ -n "$DB_ID" ] || { printf '%s\n' "$OUT" >&2; die "输出里没找到 database_id，请手动填进 wrangler.toml"; }
   if [[ "$(uname)" == "Darwin" ]]; then
@@ -109,7 +109,7 @@ fi
 # ── 5. 建表 ──────────────────────────────────────────────────────────────────
 step "建表"
 wr d1 execute schedule --file=schema.sql --remote >/dev/null 2>&1 \
-  || die "建表失败，手动执行：wr d1 execute schedule --file=schema.sql --remote"
+  || die "建表失败。手动执行：wrangler d1 execute schedule --file=schema.sql --remote"
 ok "表已建好（重复执行是安全的）"
 
 # ── 6. WORKER_TOKEN ──────────────────────────────────────────────────────────
@@ -126,7 +126,7 @@ if [ "$NEED_TOKEN" = "1" ]; then
     TOKEN="$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')"
   fi
   printf '%s' "$TOKEN" | wr secret put WORKER_TOKEN >/dev/null 2>&1 \
-    || die "wr secret put WORKER_TOKEN 失败"
+    || die "wrangler secret put WORKER_TOKEN 失败"
   ok "已生成并写入 WORKER_TOKEN"
 else
   # 保留原值时也得知道它，好写进 Streamlit
