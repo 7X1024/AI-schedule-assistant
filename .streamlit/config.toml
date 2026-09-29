@@ -1,0 +1,8 @@
+[theme]
+# The app hardcodes a light palette (app.py sets .stApp background #f5f5f7 and
+# white textareas). Without an explicit base, Streamlit follows the OS colour
+# scheme and flips text to white on a white background.
+base = "light"
+
+[client]
+toolbarMode = "minimal"
