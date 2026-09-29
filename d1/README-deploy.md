@@ -13,6 +13,32 @@
 - Node.js 18 以上（`node --version` 能出版本号即可）
 - Cloudflare 账号，**免费，不需要信用卡** → https://dash.cloudflare.com/sign-up
 
+---
+
+## 最省事的做法：一键脚本
+
+```bash
+bash d1/setup.sh
+```
+
+它会自己做完这些事，你只需要在浏览器点一次授权：
+
+1. 检查（必要时安装）wrangler
+2. 登录，并从 `wrangler whoami` 里读出 Account ID 填进 `wrangler.toml`
+3. 建库，把输出的 database_id 填进 `wrangler.toml`
+4. 建表
+5. 生成一个随机 WORKER_TOKEN 并写进 Worker
+6. 部署
+7. 把 `WORKER_URL` / `WORKER_TOKEN` **追加**到 `.streamlit/secrets.toml`
+8. 最后打印出你需要手动改的那两行 import
+
+跑完只剩两件事：改 `app.py` 的两行 import，以及跑迁移脚本。
+
+脚本是幂等的，重复跑安全。
+
+<details>
+<summary>想手动一步一步来（下面是等价的手工流程）</summary>
+
 ## 拿 Account ID
 
 登录后点右上角头像 → **My Profile** → **Account ID**（32 位十六进制）。
@@ -102,6 +128,9 @@ python3 d1/migrate_to_d1.py --commit    # 确认无误后真正写入
 继续工作。`d1_storage.py` 对这些名字的语义做了逐条对齐。
 
 **其他任何一行都不用改。**
+
+> 只想看数据不想改代码：用 `wrangler d1 execute schedule --remote --command "SELECT * FROM items LIMIT 20"`
+> 就能确认数据有没有搬过来。
 
 ---
 
