@@ -249,15 +249,38 @@ if grep -q '^WORKER_URL' "$SECRETS"; then
   ok "secrets.toml 里已有 WORKER_URL，未改动"
 else
   if [ -n "$TOKEN" ]; then
-    cat >> "$SECRETS" <<EOF
-
+    # 关键：必须插到第一个 [段头] 之前，不能 cat >> 追加到文件末尾。
+    # TOML 规则是「段头之后的键属于该段」——追加到 [gcp] 后面的话，
+    # WORKER_URL 会被解析成 gcp.WORKER_URL，App 读 st.secrets["WORKER_URL"]
+    # 永远是 None，而且 grep 查文件内容还查得出来，看着一切正常。
+    TMPB="$(mktemp)"; TMPS="$(mktemp)"
+    cat > "$TMPB" <<EOF
 # ── Cloudflare D1（由 d1/setup.sh 写入于 $(date '+%Y-%m-%d %H:%M')）──
 WORKER_URL = "$URL"
 WORKER_TOKEN = "$TOKEN"
 EOF
-    ok "已追加 WORKER_URL / WORKER_TOKEN"
+    awk 'FNR==NR { blk = blk $0 ORS; next }
+         /^\[/ && !done { printf "%s\n", blk; done = 1 }
+         { print }' "$TMPB" "$SECRETS" > "$TMPS"
+    if [ -s "$TMPS" ]; then
+      cat "$TMPS" > "$SECRETS"      # cat 而非 mv：保持原文件权限与 inode
+      ok "已插入 WORKER_URL / WORKER_TOKEN（放在第一个 [段头] 之前）"
+    else
+      die "写 secrets.toml 失败，没有改动原文件"
+    fi
+    rm -f "$TMPB" "$TMPS"
+
+    # 复核：确认它真的成了顶层键，而不是被吸进某个 [段]
+    FIRST_SECTION="$(grep -n '^\[' "$SECRETS" | head -1 | cut -d: -f1 || echo 999999)"
+    URL_LINE="$(grep -n '^WORKER_URL' "$SECRETS" | head -1 | cut -d: -f1 || echo 0)"
+    if [ "$URL_LINE" -eq 0 ] || [ "$URL_LINE" -ge "$FIRST_SECTION" ]; then
+      printf '%s✗ WORKER_URL 不在顶层段里，App 会读不到。请检查 %s 的排版。%s\n' "$RED" "$SECRETS" "$OFF" >&2
+      exit 1
+    fi
+    ok "已复核：WORKER_URL 在第 $URL_LINE 行，第一个 [段头] 在第 $FIRST_SECTION 行 ✓"
   else
     ok "没拿到 token，没法自动写入，请手动把上面那两行加进 secrets.toml"
+    ok "${DIM}  注意：必须加在第一个 [段头] 之前，否则会被解析进那个表里。${OFF}"
   fi
 fi
 
