@@ -5,3 +5,6 @@ data/
 .DS_Store
 venv/
 .venv/
+
+# d1/setup.sh 生成的本地 token 副本，绝不能进仓库
+d1/.worker_token

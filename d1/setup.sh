@@ -178,12 +178,22 @@ ok "表已建好（重复执行是安全的）"
 
 # ── 6. WORKER_TOKEN ──────────────────────────────────────────────────────────
 step "配置密钥"
-NEED_TOKEN=1
-if wr secret list 2>/dev/null | grep -q WORKER_TOKEN; then
-  ok "WORKER_TOKEN 已存在，保留原值"
-  NEED_TOKEN=0
-fi
-if [ "$NEED_TOKEN" = "1" ]; then
+# 关键：必须拿到 token 的明文，否则没法写进 Streamlit 的 secrets，
+# App 就连不上。所以"云端已存在但本地没副本"时，不能保留原值 ——
+# 那个值没人知道，等于把部署卡死。Worker 还没部署成功，覆盖它是安全的。
+TOKEN_FILE=".worker_token"
+if [ -f "$TOKEN_FILE" ] && [ -s "$TOKEN_FILE" ]; then
+  TOKEN="$(cat "$TOKEN_FILE")"
+  if printf '%s' "$TOKEN" | wr secret put WORKER_TOKEN >/dev/null 2>&1; then
+    ok "复用本地记录的 WORKER_TOKEN"
+  else
+    say "  ${DIM}写入失败，沿用本地副本${OFF}"
+  fi
+else
+  if wr secret list 2>/dev/null | grep -q WORKER_TOKEN; then
+    say "  云端已有一个 WORKER_TOKEN，但本地没有副本——没人知道它的值。"
+    say "  ${DIM}（Worker 还没部署成功，覆盖它不会有任何影响。)${OFF}"
+  fi
   if command -v openssl >/dev/null; then
     TOKEN="$(openssl rand -hex 32)"
   else
@@ -191,23 +201,45 @@ if [ "$NEED_TOKEN" = "1" ]; then
   fi
   printf '%s' "$TOKEN" | wr secret put WORKER_TOKEN >/dev/null 2>&1 \
     || die "wrangler secret put WORKER_TOKEN 失败"
-  ok "已生成并写入 WORKER_TOKEN"
-else
-  # 保留原值时也得知道它，好写进 Streamlit
-  TOKEN="$(cat .worker_token 2>/dev/null || true)"
-  if [ -z "$TOKEN" ]; then
-    say "  ${DIM}注意：WORKER_TOKEN 已存在但本地没有副本。若你不知道它的值，"
-    say "  在 Cloudflare 控制台 → Workers & Pages → 你的 Worker → Settings →"
-    say "  Variables and Secrets 里查看。${OFF}"
-  fi
+  # 存一份在本脚本目录下，这样重跑能复用，也方便你随时查看
+  (umask 077; printf '%s' "$TOKEN" > "$TOKEN_FILE")
+  ok "已生成并写入 WORKER_TOKEN（副本在 d1/.worker_token，权限 600）"
 fi
 
 # ── 7. 部署 ──────────────────────────────────────────────────────────────────
 step "部署"
-wr deploy 2>&1 | sed 's/^/  /'
-URL="$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' .wrangler/deploy/*.json 2>/dev/null | head -1 || true)"
-[ -n "$URL" ] || URL="$(wr deploy 2>&1 | grep -oE 'https://[a-z0-9.-]+\.workers\.dev' | head -1 || true)"
-[ -n "$URL" ] || URL="（上面输出里的那个 https://xxx.workers.dev）"
+# 关键：不能把 wrangler 的输出接管道。管道会让 stdout 不是 TTY，
+# wrangler 于是判定为非交互环境，遇到需要确认的步骤就自动答"否"——
+# 这正是 workers.dev 子域名注册被跳过的原因。输出重定向到文件，
+# 终端是不是 TTY 都不影响 wrangler 的判断逻辑。
+DEPLOY_LOG="$(mktemp)"
+if wr deploy >"$DEPLOY_LOG" 2>&1; then
+  sed 's/^/  /' "$DEPLOY_LOG"
+  URL="$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' "$DEPLOY_LOG" | tail -1 || true)"
+  [ -n "$URL" ] || URL="$(grep -oE '[a-z0-9.-]+\.workers\.dev' "$DEPLOY_LOG" | tail -1 || true)"
+else
+  sed 's/^/  /' "$DEPLOY_LOG"
+  if grep -qiE "register a workers\.dev subdomain|workers\.dev subdomain here" "$DEPLOY_LOG"; then
+    ONBOARD="https://dash.cloudflare.com/$ACCOUNT_ID/workers/onboarding"
+    printf '\n%s✗ 差一步：你的 Cloudflare 账号还没有 workers.dev 子域名%s\n' "$RED" "$OFF" >&2
+    say ""
+    say "  这是整个账号一次性的初始化，命令行做不了，必须手动点一次："
+    say ""
+    say "    ${YEL}${ONBOARD}${OFF}"
+    say ""
+    say "  打开后在 ${YEL}Your subdomain${OFF} 那一栏，随便起一个小写名字"
+    say "  （比如 ${YEL}7x${OFF} 或 ${YEL}schedule${OFF}），点继续确认。"
+    say ""
+    say "  ${DIM}就这一步。做完再跑一次本脚本，剩下全自动。${OFF}"
+    rm -f "$DEPLOY_LOG"
+    exit 1
+  fi
+  printf '\n%s✗ 部署失败，上面的输出是 wrangler 的原始报错。%s\n' "$RED" "$OFF" >&2
+  rm -f "$DEPLOY_LOG"
+  exit 1
+fi
+rm -f "$DEPLOY_LOG"
+[ -n "$URL" ] || URL="（在 Cloudflare 控制台 → Workers & Pages 里能看到地址）"
 
 # ── 8. 写进 Streamlit 的 secrets ─────────────────────────────────────────────
 step "写入 .streamlit/secrets.toml"

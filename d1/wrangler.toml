@@ -17,14 +17,20 @@ name = "ai-schedule-assistant"
 main = "worker.js"
 compatibility_date = "2026-01-01"
 
+# 部署到 <worker名>.<你的子域>.workers.dev。
+# 这不是开关，而是「这个账号有没有子域名」的前置条件——
+# 账号必须先在控制台 Workers & Pages → Your subdomain 里认领一次，
+# 命令行无法代劳。setup.sh 会在需要时把认领链接打出来。
+workers_dev = true
+
 # 32 位十六进制。控制台 → My Profile → Account ID
-account_id = "REPLACE_WITH_YOUR_ACCOUNT_ID"
+account_id = "6b314d78ee5d7a9e0d153ae121653d2f"
 
 # [[d1_databases]] 下：wrangler d1 create schedule 输出里的 database_id
 [[d1_databases]]
 binding = "DB"
 database_name = "schedule"
-database_id = "REPLACE_AFTER_wrangler_d1_create"
+database_id = "68e8a181-e77e-42bd-b99e-19be66b516dc"
 
 # 简单访问日志。排查"为什么没存进去"时先看这里。
 [observability]
