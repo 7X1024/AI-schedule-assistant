@@ -40,13 +40,18 @@ say "  挂代理反而更容易撞上 403 验证页。${OFF}"
 
 # ── 1. wr ──────────────────────────────────────────────────────────────
 # 不做 npm install -g。macOS 上全局装包要往 /usr/local/lib 写，普通用户没权限，
-# 会直接 EACCES 失败。npx 把包装到 ~/.npm 里，是你自己的目录，不需要任何权限。
-# 第一次会下载，之后走缓存，差别只有几秒。
+# 会直接 EACCES 失败。npx 把包装到用户目录里，不需要任何权限。
+#
+# 另外把 npm 缓存目录指到一处确定属于当前用户的位置：有些机器的 ~/.npm 里
+# 混着 root 拥有的文件（以前跑过 sudo npm install -g 留下的），npm 一碰就
+# EACCES。下面的环境变量把缓存挪开，绕开这个问题，且只对本脚本生效。
+export npm_config_cache="${npm_config_cache:-$HOME/.cache/npm}"
+
 wr() {
   if command -v wrangler >/dev/null 2>&1; then
-    wr "$@"
+    command wrangler "$@"
   else
-    npx --yes wrangler@latest "$@"
+    command npx --yes wrangler@latest "$@"
   fi
 }
 
