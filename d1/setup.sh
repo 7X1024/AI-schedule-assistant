@@ -76,11 +76,33 @@ fi
 
 # ── 2. 登录 ──────────────────────────────────────────────────────────────────
 step "检查登录状态"
-if ! wr whoami >/dev/null 2>&1; then
-  say "  浏览器会弹出来，登录并点「Allow」…"
-  wr login >/dev/null 2>&1 || die "wrangler login 失败。若报 403 或 bot challenge，先别重试——发我，我给你换 API Token 的方案"
+# 注意：不能靠退出码判断。wrangler 未认证时会打印
+#   "You are not authenticated. Please run `wrangler login`."
+# 但退出码仍然是 0 —— 只看退出码会把"没登录"误判成"已登录"，
+# 于是 wrangler login 永远不会被执行。必须看输出内容。
+is_authed() {
+  local out
+  out="$(wr whoami 2>&1 || true)"
+  printf '%s' "$out" | grep -qiE "not authenticated|please run .?wrangler login" && return 1
+  return 0
+}
+
+if is_authed; then
+  ok "已登录"
+else
+  say "  还没登录。下面这步会打开浏览器，登录 Cloudflare 后点「Allow / 允许」。"
+  say "  ${DIM}若浏览器没自动弹出来，终端里会打印一个网址，手动复制到浏览器打开也行。${OFF}"
+  say ""
+  wr login || die "wrangler login 失败。若报 403 或 bot challenge，先别重试——发我，我给你换 API Token 的方案"
+  say ""
+  if is_authed; then
+    ok "登录成功"
+  else
+    printf '%s\n' "${RED}登录之后 wrangler 仍然显示未认证。原始输出：${OFF}" >&2
+    wr whoami 2>&1 | sed 's/^/    /' >&2
+    exit 1
+  fi
 fi
-ok "已登录"
 
 # ── 3. account_id ────────────────────────────────────────────────────────────
 step "读取 Account ID"
