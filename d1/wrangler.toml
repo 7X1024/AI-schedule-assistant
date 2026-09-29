@@ -1,0 +1,39 @@
+# AI 日程助手 · Cloudflare Worker 配置
+#
+# 用法
+#   1. 改下面两处：account_id（控制台右上角 → My Profile → Account ID）
+#                  database_id（执行 wrangler d1 create schedule 之后输出里那串）
+#   2. wrangler d1 execute schedule --file=schema.sql --remote
+#   3. wrangler secret put WORKER_TOKEN   # 随便生成一串长随机
+#   4. wrangler deploy
+#
+# 上面这些命令要先 cd d1 —— main = "worker.js" 是相对当前目录的。
+# 完整的分步说明见同目录的 README-deploy.md。
+#
+# secrets 只能通过 `wrangler secret put` 写入，不要写进本文件。
+# 本文件会进 git，绝不能出现任何密钥。
+
+name = "ai-schedule-assistant"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# 32 位十六进制。控制台 → My Profile → Account ID
+account_id = "REPLACE_WITH_YOUR_ACCOUNT_ID"
+
+# [[d1_databases]] 下：wrangler d1 create schedule 输出里的 database_id
+[[d1_databases]]
+binding = "DB"
+database_name = "schedule"
+database_id = "REPLACE_AFTER_wrangler_d1_create"
+
+# 简单访问日志。排查"为什么没存进去"时先看这里。
+[observability]
+enabled = true
+
+[vars]
+# 无归属记录（user 为空）的托管账号。留空 = 无人能改。
+# 填 "7X" 之后，**只有 7X 这个账号**能改那些无归属行——Worker 会拿
+# 请求里的 user 跟这个值比对，不是"谁都能改"。
+# 不填账号允许名单：真正的账号表只有 app.py:ACCOUNTS 一处，
+# 在这里抄一份只会制造第二个会漂移的真相来源。
+LEGACY_USER_OWNER = ""
