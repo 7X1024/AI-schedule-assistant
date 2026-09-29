@@ -56,7 +56,16 @@ if command -v wrangler >/dev/null 2>&1; then
 else
   say "  没有全局安装，改用 npx 运行（装在你自己目录，不需要管理员权限）"
   say "  第一次会下载 wrangler，大约十几秒…"
-  wr --version >/dev/null 2>&1 || die "npx 方式跑不起来。先确认 node 和 npm 正常：node -v && npm -v"
+  if ! wr --version; then
+    printf '%s\n' "${RED}下面是 wrangler 启动失败的真实报错：${OFF}" >&2
+    say "  ${DIM}通常是这个原因之一：${OFF}"
+    say "  ${DIM}  · node / npm 版本太老，npx 不认识 --yes 参数（需要 node 18+）${OFF}"
+    say "  ${DIM}  · 网络到 npm 镜像不通${OFF}"
+    say ""
+    say "  ${DIM}先跑这条看看环境：${OFF}"
+    say "    ${YEL}node -v && npm -v && npx --yes wrangler@latest --version${OFF}"
+    exit 1
+  fi
   ok "就绪（通过 npx）"
 fi
 
