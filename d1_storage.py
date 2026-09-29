@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 FALLBACK_WORKER_URL = ""
 FALLBACK_WORKER_TOKEN = ""
 
-TIMEOUT_S = 15
+TIMEOUT_S = 8
 
 # 与 sheets_storage.EVENTS_HEADERS 保持一致（迁移/排查时用得上）。
 EVENTS_HEADERS = [
@@ -218,7 +218,16 @@ def _request(path: str, *, method: str = "GET",
             raise _ConfigError("WORKER_TOKEN 不正确，请核对 secrets 里的值。") from e
         raise RuntimeError(f"Worker 返回 HTTP {e.code}: {body}") from e
     except urllib.error.URLError as e:
-        raise RuntimeError(f"连不上 Worker（{e.reason}），请检查 WORKER_URL 与网络。") from e
+        reason = getattr(e, "reason", e)
+        # workers.dev 在部分网络下不通（表现为超时）。这类情况要给一句能直接
+        # 照做的提示，而不是让用户对着「timed out」猜。
+        if isinstance(reason, TimeoutError) or "timed out" in str(reason).lower():
+            raise RuntimeError(
+                f"连不上 Worker（{_config('WORKER_URL')}）——请求超时。"
+                "这通常是网络问题：Cloudflare 的 workers.dev 域名在部分网络下不可达。"
+                "请检查网络，或在 Cloudflare 上给这个 Worker 绑定一个自定义域名。"
+            ) from e
+        raise RuntimeError(f"连不上 Worker（{reason}），请检查 WORKER_URL 与网络。") from e
     except json.JSONDecodeError as e:
         raise RuntimeError(f"Worker 返回的不是合法 JSON: {e}") from e
 
